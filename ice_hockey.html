@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeu de Hockey Three.js - Tirs Limités</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #333; font-family: Arial, sans-serif; }
+        canvas { display: block; }
+        #info {
+            position: absolute; top: 10px; width: 100%; text-align: center;
+            color: white; font-size: 16px; z-index: 100; pointer-events: none;
+        }
+        #score {
+            position: absolute; top: 35px; left: 10px; color: white;
+            font-size: 20px; background-color: rgba(0, 0, 0, 0.6);
+            padding: 5px 10px; border-radius: 3px; z-index: 100;
+        }
+        #goalMessage, #saveMessage, #gameOverMessage { /* Style commun messages */
+            position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 6vw; /* Taille relative à la largeur de la vue */
+            max-width: 90%;
+            font-weight: bold; display: none; text-align: center;
+            text-shadow: 3px 3px 6px #000000; z-index: 101; pointer-events: none;
+        }
+        #goalMessage { color: yellow; }
+        #saveMessage { color: red; }
+        #gameOverMessage { color: cyan; top: 40%; } /* Un peu plus haut */
+
+        #restartButton {
+            position: absolute;
+            top: 60%; /* Sous le message Game Over */
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 20px;
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            z-index: 102; /* Au-dessus de tout */
+            display: none; /* Caché au début */
+        }
+         #restartButton:hover {
+             background-color: #45a049;
+         }
+
+    </style>
+</head>
+<body>
+    <div id="info"></div> <div id="score"></div> <div id="goalMessage">BUT!</div>
+    <div id="saveMessage">ARRÊT!</div>
+    <div id="gameOverMessage">Partie Terminée!<br><span id="finalScore"></span></div>
+    <button id="restartButton">Rejouer</button>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.163.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.163.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // --- Variables Scène & Rendu ---
+        let scene, camera, renderer, clock;
+        let ice, puck, goalGroup, goalie, spectatorsMesh;
+        let leftPost, rightPost, crossbar;
+        let walls = [];
+        let aimingLine;
+        let hemiLight; // Rendre accessible globalement pour ajuster si besoin
+
+        // --- Variables Physique & Contrôle ---
+        const gravity = new THREE.Vector3(0, -9.8, 0);
+        const frictionCoefficient = 0.03;
+        const bounceFactorWall = 0.65;
+        const bounceFactorPost = 0.55;
+        const bounceFactorGoalie = 0.4;
+        const puckMass = 0.17;
+        let puckVelocity = new THREE.Vector3();
+        let isShooting = false; // True si la rondelle bouge après un tir (jusqu'au reset)
+        let isAiming = false;
+        let startMousePos = new THREE.Vector2();
+        let currentMousePos = new THREE.Vector2();
+        let startDragWorldPoint = new THREE.Vector3();
+
+        // --- Variables Gameplay ---
+        const maxShots = 10; // Nombre total de tirs
+        let shotsRemaining = maxShots;
+        let score = 0;
+        let isGameOver = false;
+
+        // --- Variables Timer Réinitialisation ---
+        const resetDelay = 2.0; // Délai en secondes
+        let resetTimerActive = false;
+        let resetTimeoutId = null;
+
+        // Paramètres de tir (inchangé)
+        const minShootPower = 5; const maxShootPower = 60; const powerSensitivity = 0.15;
+        const minLiftFactor = 0.01; const maxLiftFactor = 0.4; const liftSensitivity = 0.002;
+
+        // Dimensions (inchangées)
+        const rinkWidth = 40; const rinkDepth = 60; const wallHeight = 3;
+        const goalWidth = 6; const goalHeight = 4; const goalDepth = 3; const postRadius = 0.15;
+        const goalLineZ = -rinkDepth / 2 + 1;
+        const puckRadius = 0.3; const puckHeight = 0.15;
+        const goalieWidth = 1; const goalieHeight = 3.5; const goalieDepth = 0.5; const goalieSpeed = 3;
+        const standDepth = 15; const standHeight = 10; const standBaseHeight = 0.5;
+        const spectatorCount = 1500;
+
+        // Collision & Raycasting (inchangés)
+        let puckBoundingBox = new THREE.Box3();
+        let goalieBoundingBox = new THREE.Box3();
+        let leftPostBB = new THREE.Box3(); let rightPostBB = new THREE.Box3(); let crossbarBB = new THREE.Box3();
+        const raycaster = new THREE.Raycaster(); const mouse = new THREE.Vector2();
+
+        // Éléments DOM
+        const infoElement = document.getElementById('info');
+        const scoreElement = document.getElementById('score');
+        const goalMessageElement = document.getElementById('goalMessage');
+        const saveMessageElement = document.getElementById('saveMessage');
+        const gameOverMessageElement = document.getElementById('gameOverMessage');
+        const finalScoreElement = document.getElementById('finalScore');
+        const restartButtonElement = document.getElementById('restartButton');
+
+
+        // --- INITIALISATION ---
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x333333);
+            scene.fog = new THREE.Fog(0x333333, 60, 150);
+
+            clock = new THREE.Clock();
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 20, 35);
+            camera.lookAt(0, 0, goalLineZ);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.body.appendChild(renderer.domElement);
+
+            setupLighting();
+            createIceAndMarkings();
+            createWalls();
+            createGoal();
+            createGoalie();
+            createStandsAndSpectators();
+            createAimingLine();
+            createPuck(); // Crée la rondelle mais ne la positionne pas encore pour le jeu
+
+            // --- Écouteurs d'événements ---
+            window.addEventListener('resize', onWindowResize, false);
+            renderer.domElement.addEventListener('mousedown', onMouseDown, false);
+            renderer.domElement.addEventListener('mousemove', onMouseMove, false);
+            renderer.domElement.addEventListener('mouseup', onMouseUp, false);
+            renderer.domElement.addEventListener('mouseleave', onMouseLeave, false);
+            // Écouteur pour le bouton Rejouer
+            restartButtonElement.addEventListener('click', startGame);
+
+            // Démarrer le premier jeu
+            startGame();
+
+            // Lancer la boucle d'animation
+            animate();
+        }
+
+        // --- DÉMARRAGE / REDÉMARRAGE DU JEU ---
+        function startGame() {
+            console.log("Starting new game...");
+            score = 0;
+            shotsRemaining = maxShots;
+            isGameOver = false;
+
+            // Cacher les messages et le bouton rejouer
+            hideGoalMessage();
+            hideSaveMessage();
+            gameOverMessageElement.style.display = 'none';
+            restartButtonElement.style.display = 'none';
+
+            // Mettre à jour l'affichage
+            updateScoreDisplay();
+            updateInfoText();
+
+            // Réinitialiser la position de la rondelle et annuler tout timer
+            resetPuck(); // resetPuck gère l'arrêt de la physique et des timers
+            puck.visible = true; // Assurer que la rondelle est visible
+        }
+
+
+        // --- CONFIGURATION SCÈNE (inchangé sauf HemiLight global) ---
+        function setupLighting() { /* ... */
+            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+            directionalLight.position.set(20, 40, 30);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048; directionalLight.shadow.mapSize.height = 2048;
+            directionalLight.shadow.camera.near = 10; directionalLight.shadow.camera.far = 150;
+            directionalLight.shadow.camera.left = -rinkWidth/2-standDepth-5; directionalLight.shadow.camera.right = rinkWidth/2+standDepth+5;
+            directionalLight.shadow.camera.top = rinkDepth/2+standDepth+5; directionalLight.shadow.camera.bottom = -rinkDepth/2-standDepth-5;
+            directionalLight.shadow.bias = -0.0005;
+            scene.add(directionalLight);
+            hemiLight = new THREE.HemisphereLight( 0xAAAAFF, 0x666644, 0.6 );
+            hemiLight.position.set( 0, 50, 0 );
+            scene.add( hemiLight );
+        }
+        function createIceAndMarkings() { /* ... code inchangé ... */
+             const iceGeometry = new THREE.PlaneGeometry(rinkWidth, rinkDepth); const iceMaterial = new THREE.MeshStandardMaterial({ color: 0xd8e8ff, roughness: 0.2, metalness: 0.0, });
+             ice = new THREE.Mesh(iceGeometry, iceMaterial); ice.rotation.x = -Math.PI / 2; ice.position.y = -0.01; ice.receiveShadow = true; scene.add(ice);
+             const redLineMaterial = new THREE.MeshBasicMaterial({ color: 0xcc0000 }); const blueLineMaterial = new THREE.MeshBasicMaterial({ color: 0x3333ff });
+             const goalLineGeo = new THREE.PlaneGeometry(rinkWidth, 0.1); const goalLineFront = new THREE.Mesh(goalLineGeo, redLineMaterial); goalLineFront.rotation.x = -Math.PI / 2; goalLineFront.position.set(0, 0.01, goalLineZ); scene.add(goalLineFront);
+             const centerLine = new THREE.Mesh(goalLineGeo, redLineMaterial); centerLine.rotation.x = -Math.PI / 2; centerLine.position.set(0, 0.01, 0); scene.add(centerLine);
+             const blueLineZ = rinkDepth / 6; const blueLineGeo = new THREE.PlaneGeometry(rinkWidth, 0.2); const blueLine1 = new THREE.Mesh(blueLineGeo, blueLineMaterial); blueLine1.rotation.x = -Math.PI / 2; blueLine1.position.set(0, 0.01, blueLineZ); scene.add(blueLine1); const blueLine2 = new THREE.Mesh(blueLineGeo, blueLineMaterial); blueLine2.rotation.x = -Math.PI / 2; blueLine2.position.set(0, 0.01, -blueLineZ); scene.add(blueLine2);
+             const circleRadius = 3; const circleGeo = new THREE.RingGeometry(circleRadius - 0.05, circleRadius, 64);
+             const faceoffPositions = [ { x: 0, z: 0 }, { x: -rinkWidth/4, z: -blueLineZ * 1.8 }, { x:  rinkWidth/4, z: -blueLineZ * 1.8 }, { x: -rinkWidth/4, z: blueLineZ * 1.8 }, { x:  rinkWidth/4, z: blueLineZ * 1.8 }, ];
+             faceoffPositions.forEach(pos => { const circle = new THREE.Mesh(circleGeo, redLineMaterial); circle.rotation.x = -Math.PI / 2; circle.position.set(pos.x, 0.01, pos.z); scene.add(circle); });
+         }
+        function createWalls() { /* ... code inchangé ... */
+             const wallThickness = 0.5; const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xf0f0f0, roughness: 0.7, metalness: 0.05 });
+             let wall = new THREE.Mesh(new THREE.BoxGeometry(rinkWidth + wallThickness * 2, wallHeight, wallThickness), wallMaterial); wall.position.set(0, wallHeight / 2, -rinkDepth / 2 - wallThickness / 2); wall.castShadow = true; wall.receiveShadow = true; scene.add(wall); walls.push(wall);
+             wall = new THREE.Mesh(new THREE.BoxGeometry(rinkWidth + wallThickness * 2, wallHeight, wallThickness), wallMaterial); wall.position.set(0, wallHeight / 2, rinkDepth / 2 + wallThickness / 2); wall.castShadow = true; wall.receiveShadow = true; scene.add(wall); walls.push(wall);
+             wall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, wallHeight, rinkDepth + wallThickness * 2), wallMaterial); wall.position.set(-rinkWidth / 2 - wallThickness / 2, wallHeight / 2, 0); wall.castShadow = true; wall.receiveShadow = true; scene.add(wall); walls.push(wall);
+             wall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, wallHeight, rinkDepth + wallThickness * 2), wallMaterial); wall.position.set(rinkWidth / 2 + wallThickness / 2, wallHeight / 2, 0); wall.castShadow = true; wall.receiveShadow = true; scene.add(wall); walls.push(wall);
+             walls.forEach(w => { w.geometry.computeBoundingBox(); w.userData.boundingBox = new THREE.Box3(); }); updateWallBoundingBoxes();
+         }
+        function updateWallBoundingBoxes() { walls.forEach(w => { w.userData.boundingBox.setFromObject(w); }); }
+        function createGoal() { /* ... code inchangé ... */
+             goalGroup = new THREE.Group(); goalGroup.position.z = goalLineZ;
+             const postMaterial = new THREE.MeshStandardMaterial({ color: 0xcc0000, roughness: 0.4, metalness: 0.5 });
+             const postGeometry = new THREE.CylinderGeometry(postRadius, postRadius, goalHeight, 16); leftPost = new THREE.Mesh(postGeometry, postMaterial); leftPost.position.set(-goalWidth / 2, goalHeight / 2, 0); leftPost.castShadow = true; leftPost.receiveShadow = true; goalGroup.add(leftPost); rightPost = new THREE.Mesh(postGeometry, postMaterial); rightPost.position.set(goalWidth / 2, goalHeight / 2, 0); rightPost.castShadow = true; rightPost.receiveShadow = true; goalGroup.add(rightPost);
+             const crossbarGeometry = new THREE.CylinderGeometry(postRadius, postRadius, goalWidth, 16); crossbar = new THREE.Mesh(crossbarGeometry, postMaterial); crossbar.rotation.z = Math.PI / 2; crossbar.position.set(0, goalHeight, 0); crossbar.castShadow = true; crossbar.receiveShadow = true; goalGroup.add(crossbar);
+             const netGeometry = new THREE.BoxGeometry(goalWidth, goalHeight, goalDepth); const netMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true, transparent: true, opacity: 0.6 }); const netMesh = new THREE.Mesh(netGeometry, netMaterial); netMesh.position.set(0, goalHeight / 2, -goalDepth / 2); goalGroup.add(netMesh); scene.add(goalGroup);
+             leftPost.geometry.computeBoundingBox(); rightPost.geometry.computeBoundingBox(); crossbar.geometry.computeBoundingBox(); updateGoalBoundingBoxes();
+         }
+        function createGoalie() { /* ... code inchangé ... */
+              const goalieGeometry = new THREE.BoxGeometry(goalieWidth, goalieHeight, goalieDepth); const goalieMaterial = new THREE.MeshStandardMaterial({ color: 0x00008B, roughness: 0.7, metalness: 0.1 });
+              goalie = new THREE.Mesh(goalieGeometry, goalieMaterial); goalie.position.set(0, goalieHeight / 2, goalLineZ + goalieDepth / 2 + postRadius); goalie.castShadow = true; goalie.receiveShadow = true; scene.add(goalie); goalie.geometry.computeBoundingBox(); updateGoalieBoundingBox();
+         }
+        function createStandsAndSpectators() { /* ... code inchangé ... */
+            const standMaterial = new THREE.MeshStandardMaterial({ color: 0x999999, roughness: 0.9, metalness: 0.0 }); const standsGroup = new THREE.Group(); const standPositions = [ { x: -rinkWidth / 2 - standDepth / 2, z: 0, rotY: -Math.PI / 2 }, { x: rinkWidth / 2 + standDepth / 2, z: 0, rotY: Math.PI / 2 }, { x: 0, z: -rinkDepth / 2 - standDepth / 2, rotY: 0 } ];
+             standPositions.forEach((posInfo, index) => { const actualWidth = (index < 2) ? rinkDepth : rinkWidth; const standBox = new THREE.Mesh( new THREE.BoxGeometry(actualWidth, standHeight, standDepth), standMaterial ); standBox.rotation.x = -Math.PI / 12; standBox.position.set(posInfo.x, standBaseHeight + standHeight * 0.4, posInfo.z); standBox.rotation.y = posInfo.rotY; standBox.receiveShadow = true; standsGroup.add(standBox); }); scene.add(standsGroup);
+             const spectatorGeometry = new THREE.CylinderGeometry(0.3, 0.3, 1.8, 8); const spectatorMaterial = new THREE.MeshStandardMaterial({ roughness: 0.6, metalness: 0.2 }); spectatorsMesh = new THREE.InstancedMesh(spectatorGeometry, spectatorMaterial, spectatorCount); spectatorsMesh.castShadow = true; spectatorsMesh.receiveShadow = true; const dummy = new THREE.Object3D(); const color = new THREE.Color(); const colorsPalette = [ 0xDF1F2D, 0x004F9F, 0xFDBB30, 0xFFFFFF, 0x000000, 0x05FD00, 0xFF00FF, 0x00FFFF, 0x8B4513, 0x228B22, 0xFF69B4, 0xADFF2F]; let instancesPlaced = 0;
+             while(instancesPlaced < spectatorCount) { const sectionIndex = Math.floor(Math.random() * 3); const sectionWidth = (sectionIndex < 2) ? rinkDepth : rinkWidth; const sectionDepth = standDepth; const xOffset = (Math.random() - 0.5) * sectionWidth * 0.95; const zOffset = Math.random() * sectionDepth * 0.9; const yOffset = standBaseHeight + (zOffset / sectionDepth) * standHeight * 1.1; dummy.position.set(xOffset, yOffset, -sectionDepth / 2 + zOffset); const standInfo = standPositions[sectionIndex]; dummy.rotation.y = Math.random() * 0.4 - 0.2; dummy.applyMatrix4(new THREE.Matrix4().makeRotationY(standInfo.rotY)); dummy.position.add(new THREE.Vector3(standInfo.x, 0, standInfo.z)); dummy.updateMatrix(); spectatorsMesh.setMatrixAt(instancesPlaced, dummy.matrix); color.setHex(colorsPalette[Math.floor(Math.random() * colorsPalette.length)]); spectatorsMesh.setColorAt(instancesPlaced, color); instancesPlaced++; } spectatorsMesh.instanceMatrix.needsUpdate = true; if (spectatorsMesh.instanceColor) { spectatorsMesh.instanceColor.needsUpdate = true; } scene.add(spectatorsMesh); console.log(`Ajouté ${spectatorCount} spectateurs`);
+         }
+        function createAimingLine() { /* ... code inchangé ... */
+             const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.7, depthTest: false }); const points = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1)]; const lineGeometry = new THREE.BufferGeometry().setFromPoints(points); aimingLine = new THREE.Line(lineGeometry, lineMaterial); aimingLine.renderOrder = 999; aimingLine.visible = false; scene.add(aimingLine);
+         }
+        function createPuck() { /* ... */
+             const puckGeometry = new THREE.CylinderGeometry(puckRadius, puckRadius, puckHeight, 24);
+             const puckMaterial = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.4, metalness: 0.0 });
+             puck = new THREE.Mesh(puckGeometry, puckMaterial);
+             puck.castShadow = true; puck.receiveShadow = true;
+             // Ne pas appeler resetPuck ici, sera fait par startGame()
+             scene.add(puck);
+         }
+
+        // --- Reset Puck & Gestion Fin de Tir ---
+        function resetPuck() {
+             console.log("Reset Puck - Vérification Game Over");
+            // Arrêter et nettoyer le timer s'il était actif
+             if (resetTimeoutId) {
+                 clearTimeout(resetTimeoutId);
+                 resetTimeoutId = null;
+             }
+             resetTimerActive = false;
+             isShooting = false; // Le tir est terminé
+
+             // Vérifier si c'était le dernier tir
+             if (shotsRemaining <= 0 && !isGameOver) {
+                 gameOver();
+                 return; // Ne pas repositionner la rondelle si partie terminée
+             }
+
+             // Si partie non terminée, repositionner pour le prochain tir
+             if (!isGameOver) {
+                 puck.position.set(0, puckHeight / 2, rinkDepth * 0.3);
+                 puckVelocity.set(0, 0, 0);
+                 puck.visible = true; // S'assurer qu'elle est visible
+                 isAiming = false;
+                 if (aimingLine) aimingLine.visible = false;
+                 hideGoalMessage();
+                 hideSaveMessage();
+                 updateInfoText(); // Mettre à jour le texte d'info (qui peut changer)
+             }
+         }
+
+        // --- Timer de Relance (inchangé) ---
+         function startResetTimer(delay = resetDelay) {
+             if (resetTimerActive || isGameOver) return; // Ne pas démarrer si déjà actif ou partie terminée
+             console.log(`Starting reset timer (${delay}s)`);
+             resetTimerActive = true;
+             isShooting = true; // Important: maintient l'état "tir en cours" pendant le timer
+             if (resetTimeoutId) { clearTimeout(resetTimeoutId); }
+             resetTimeoutId = setTimeout(() => {
+                 console.log("Reset timer finished.");
+                 resetTimeoutId = null;
+                 resetTimerActive = false;
+                 // Appel resetPuck à la fin du timer pour vérifier game over et/ou repositionner
+                 resetPuck();
+             }, delay * 1000);
+         }
+
+        // --- Fin de Partie ---
+        function gameOver() {
+             console.log("GAME OVER");
+             isGameOver = true;
+             isShooting = false; // Arrêter tout mouvement potentiel
+             isAiming = false;
+             puckVelocity.set(0, 0, 0);
+             puck.visible = false; // Cacher la rondelle
+             if (aimingLine) aimingLine.visible = false;
+             hideGoalMessage();
+             hideSaveMessage();
+
+             // Afficher message de fin et score
+             finalScoreElement.textContent = `Score Final: ${score} / ${maxShots}`;
+             gameOverMessageElement.style.display = 'block';
+             restartButtonElement.style.display = 'block'; // Afficher bouton rejouer
+             updateInfoText(); // Mettre à jour le texte d'info
+        }
+
+        // --- GESTIONNAIRES D'ÉVÉNEMENTS (modifié onMouseDown, onMouseUp) ---
+        function onWindowResize() { /* ... */ camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
+        function getMouseWorldPoint(event) { /* ... */ mouse.x = (event.clientX / window.innerWidth) * 2 - 1; mouse.y = -(event.clientY / window.innerHeight) * 2 + 1; raycaster.setFromCamera(mouse, camera); const intersects = raycaster.intersectObject(ice); return intersects.length > 0 ? intersects[0].point : null; }
+
+        function onMouseDown(event) {
+            // Empêcher de viser si tir en cours, reset en cours, OU partie terminée
+            if (isShooting || resetTimerActive || isGameOver) {
+                 console.log(`Cannot aim: shooting=${isShooting}, resetTimerActive=${resetTimerActive}, isGameOver=${isGameOver}`);
+                 return;
+             }
+            const worldPoint = getMouseWorldPoint(event);
+            if (worldPoint) {
+                 isAiming = true; startMousePos.set(event.clientX, event.clientY); currentMousePos.copy(startMousePos); startDragWorldPoint.copy(worldPoint);
+                 if(aimingLine) aimingLine.visible = true; updateAimingLine();
+            }
+        }
+
+        function onMouseMove(event) { /* ... */ if (!isAiming || isGameOver) return; currentMousePos.set(event.clientX, event.clientY); updateAimingLine(); }
+
+        function onMouseUp(event) {
+             if (!isAiming || isGameOver) return;
+             isAiming = false; if(aimingLine) aimingLine.visible = false;
+
+             // --- Tir (calculs inchangés) ---
+             const endWorldPoint = getMouseWorldPoint(event) || startDragWorldPoint; endWorldPoint.y = puckHeight / 2;
+             const dragDistance = startMousePos.distanceTo(currentMousePos); let power = minShootPower + dragDistance * powerSensitivity; power = THREE.MathUtils.clamp(power, minShootPower, maxShootPower);
+             const deltaY = startMousePos.y - currentMousePos.y; let lift = minLiftFactor + deltaY * liftSensitivity; lift = THREE.MathUtils.clamp(lift, minLiftFactor, maxLiftFactor);
+             const direction = new THREE.Vector3().subVectors(endWorldPoint, puck.position).normalize();
+
+             // --- Appliquer vélocité & Décompter Tir ---
+             puckVelocity.copy(direction).multiplyScalar(power); puckVelocity.y = lift * power;
+             isShooting = true; // Important: le tir commence maintenant
+
+             // Décompter seulement si ce n'est pas déjà Game Over (sécurité)
+             if (!isGameOver) {
+                shotsRemaining--;
+                updateScoreDisplay(); // Mettre à jour l'affichage du score/tirs restants
+                updateInfoText(); // Mettre à jour le texte d'info
+             }
+
+             console.log(`Tir ${maxShots - shotsRemaining}/${maxShots} - Pw: ${power.toFixed(1)}, Lift: ${lift.toFixed(3)}`);
+             // Le check de Game Over se fera via resetPuck après la résolution du tir
+         }
+        function onMouseLeave(event) { /* ... */ if (isAiming && !isGameOver) { isAiming = false; if(aimingLine) aimingLine.visible = false; console.log("Tir annulé (souris sortie)"); } }
+
+
+        // --- MISE À JOUR & PHYSIQUE (Gestion état isShooting/GameOver) ---
+        function updateAimingLine() { /* ... */ if (!isAiming || !puck || !aimingLine || isGameOver) return; const targetPoint = getMouseWorldPoint({clientX: currentMousePos.x, clientY: currentMousePos.y}) || startDragWorldPoint; targetPoint.y = puckHeight / 2; const positions = aimingLine.geometry.attributes.position.array; positions[0] = puck.position.x; positions[1] = puck.position.y; positions[2] = puck.position.z; positions[3] = targetPoint.x; positions[4] = targetPoint.y; positions[5] = targetPoint.z; aimingLine.geometry.attributes.position.needsUpdate = true; aimingLine.geometry.computeBoundingSphere(); const dragDistance = startMousePos.distanceTo(currentMousePos); let powerRatio = THREE.MathUtils.clamp((dragDistance * powerSensitivity) / (maxShootPower - minShootPower), 0, 1); aimingLine.material.color.setHSL(0.1 + powerRatio * 0.2, 1, 0.5); }
+
+        function updatePhysics(deltaTime) {
+             // Ne rien faire si la partie est terminée
+             if (isGameOver) return;
+
+             // Mettre à jour la physique seulement si un tir est en cours ET qu'on n'attend pas le reset timer
+             if (isShooting && !resetTimerActive) {
+                 // 1. Forces (inchangé)
+                 const force = new THREE.Vector3(); force.addScaledVector(gravity, puckMass);
+                 if (puck.position.y <= puckHeight / 2 + 0.01 && puckVelocity.lengthSq() > 0.01) { const frictionForce = puckVelocity.clone().normalize().multiplyScalar(-frictionCoefficient * puckMass * Math.abs(gravity.y)); force.x += frictionForce.x; force.z += frictionForce.z; if(puckVelocity.y === 0 && puckVelocity.lengthSq() < 0.5) { puckVelocity.multiplyScalar(0.95); } }
+                 // 2. Vélocité (inchangé)
+                 puckVelocity.addScaledVector(force, deltaTime / puckMass);
+                 // 3. Position (inchangé)
+                 puck.position.addScaledVector(puckVelocity, deltaTime);
+
+                 // 4. Collisions (peuvent déclencher timer)
+                 checkCollisions(deltaTime);
+
+                 // 5. Vérifier arrêt après tir (peut déclencher timer)
+                 const speedThresholdForStop = 0.5;
+                 if (isShooting && !resetTimerActive && puckVelocity.lengthSq() < speedThresholdForStop * speedThresholdForStop && puck.position.y <= puckHeight / 2 + 0.01) {
+                      console.log("Puck slowed down, starting reset timer.");
+                      startResetTimer();
+                 }
+             }
+
+            // 6. Réinitialiser si hors limites (garde cette sécurité, reset immédiat)
+             if (Math.abs(puck.position.z) > rinkDepth / 2 + standDepth + 10 || Math.abs(puck.position.x) > rinkWidth / 2 + standDepth + 10) {
+                 console.log("Rondelle hors limites, réinitialisation.");
+                 if (!isGameOver) resetPuck(); // Appelle resetPuck qui vérifiera aussi l'état game over
+             }
+        }
+
+         // --- COLLISIONS (Gestion timer/gameover) ---
+        function checkCollisions(deltaTime) {
+             // Ne rien faire si on attend le reset ou si partie finie
+             if (resetTimerActive || isGameOver) return;
+
+             puckBoundingBox.setFromObject(puck);
+
+             // Glace
+             if (puck.position.y < puckHeight / 2) { puck.position.y = puckHeight / 2; puckVelocity.y *= -bounceFactorWall; if (Math.abs(puckVelocity.y) < 0.5) { puckVelocity.y = 0; } }
+
+             // Murs (peut déclencher timer)
+            handleWallCollisions();
+             // Poteaux (peut déclencher timer)
+            handleGoalCollision();
+             // Gardien (peut déclencher timer)
+            handleGoalieCollision();
+
+             // But (fin de la séquence de tir, incrémente score, prépare reset)
+            if (checkForGoal()) {
+                 showGoalMessage();
+                 score++;
+                 updateScoreDisplay();
+                 isShooting = false; // Arrêter la physique
+                 puckVelocity.set(0,0,0); // Stopper la rondelle net
+                 // Utiliser startResetTimer pour gérer le délai ET la vérification de fin de partie
+                 startResetTimer(1.5); // Délai court après un but (1.5s)
+                 return; // Sortir pour éviter autres actions/timers
+            }
+        }
+
+        function handleWallCollisions() { /* ... (logique interne inchangée, mais appelle startResetTimer si mur du fond) ... */
+            if (resetTimerActive || isGameOver) return;
+            const halfRinkWidth = rinkWidth / 2; const halfRinkDepth = rinkDepth / 2;
+            if (puck.position.x + puckRadius > halfRinkWidth) { puck.position.x = halfRinkWidth - puckRadius; puckVelocity.x *= -bounceFactorWall; }
+            else if (puck.position.x - puckRadius < -halfRinkWidth) { puck.position.x = -halfRinkWidth + puckRadius; puckVelocity.x *= -bounceFactorWall; }
+            if (puck.position.z + puckRadius > halfRinkDepth) { puck.position.z = halfRinkDepth - puckRadius; puckVelocity.z *= -bounceFactorWall; }
+            else if (puck.position.z - puckRadius < -halfRinkDepth) { puck.position.z = -halfRinkDepth + puckRadius; const oldVelocityZ = puckVelocity.z; puckVelocity.z *= -bounceFactorWall; if (isShooting && !resetTimerActive && oldVelocityZ < -0.1) { console.log("Puck hit back wall, starting reset timer."); startResetTimer(); } }
+         }
+        function updateGoalBoundingBoxes() { /* ... */ goalGroup.updateMatrixWorld(true); leftPostBB.setFromObject(leftPost, true); rightPostBB.setFromObject(rightPost, true); crossbarBB.setFromObject(crossbar, true); }
+        function updateGoalieBoundingBox() { /* ... */ goalieBoundingBox.setFromObject(goalie); }
+        function handleGoalCollision() { /* ... (logique interne inchangée, mais appelle startResetTimer si hit) ... */
+            if (resetTimerActive || isGameOver) return; let hit = false;
+            if (puckBoundingBox.intersectsBox(leftPostBB)) { puckVelocity.x = Math.abs(puckVelocity.x) * bounceFactorPost; puckVelocity.z *= bounceFactorPost * 0.8; puck.position.x = leftPost.position.x + postRadius + puckRadius + 0.01; hit = true; console.log("Touche Poteau Gauche"); }
+            else if (puckBoundingBox.intersectsBox(rightPostBB)) { puckVelocity.x = -Math.abs(puckVelocity.x) * bounceFactorPost; puckVelocity.z *= bounceFactorPost * 0.8; puck.position.x = rightPost.position.x - postRadius - puckRadius - 0.01; hit = true; console.log("Touche Poteau Droit"); }
+            else if (puckBoundingBox.intersectsBox(crossbarBB)) { puckVelocity.y = -Math.abs(puckVelocity.y) * bounceFactorPost; puckVelocity.z *= bounceFactorPost * 0.8; puck.position.y = crossbar.position.y - postRadius - puckRadius - 0.01; hit = true; console.log("Touche Barre Horizontale"); }
+            if(hit && isShooting && !resetTimerActive) { startResetTimer(); }
+        }
+        function handleGoalieCollision() { /* ... (logique interne inchangée, mais appelle startResetTimer si arrêt) ... */
+             if (resetTimerActive || isGameOver) return; updateGoalieBoundingBox();
+             if (puckBoundingBox.intersectsBox(goalieBoundingBox)) {
+                 console.log("Arrêt du Gardien!"); showSaveMessage(); setTimeout(hideSaveMessage, 1200);
+                 const centerPuck = puck.position; const centerGoalie = goalie.position; const deltaX = centerPuck.x - centerGoalie.x; const deltaZ = centerPuck.z - centerGoalie.z;
+                 if (Math.abs(deltaX) > goalieWidth / 3) { puckVelocity.x *= -bounceFactorGoalie; puck.position.x += Math.sign(deltaX) * 0.1; }
+                 else if (Math.abs(deltaZ) > goalieDepth / 3) { puckVelocity.z *= -bounceFactorGoalie; puck.position.z += Math.sign(deltaZ) * 0.1; }
+                 else { puckVelocity.z *= -bounceFactorGoalie * 1.2; puckVelocity.x += deltaX * 0.5; puck.position.z += Math.sign(deltaZ) * 0.1; }
+                 puckVelocity.y *= bounceFactorGoalie;
+                 if(isShooting && !resetTimerActive) { startResetTimer(); }
+             }
+         }
+         // checkForGoal inchangé
+         function checkForGoal() { if (isGameOver || resetTimerActive) return false; const puckCenter = puck.position; const puckBack = puckCenter.z - puckRadius; const goalInnerEdgeL = -goalWidth / 2 + postRadius; const goalInnerEdgeR = goalWidth / 2 - postRadius; const crossbarBottom = goalHeight - postRadius; if (puckBack < goalLineZ) { if (puckCenter.x > goalInnerEdgeL && puckCenter.x < goalInnerEdgeR) { if (puckCenter.y + puckHeight / 2 < crossbarBottom) { if (isShooting) { console.log("BUT!"); return true; } } } } return false; }
+
+        // --- AFFICHAGE & ANIMATION ---
+        function updateScoreDisplay() {
+            scoreElement.textContent = `Buts: ${score} / Tirs Restants: ${shotsRemaining}`;
+        }
+        function updateInfoText() {
+            if (isGameOver) {
+                infoElement.textContent = "Partie terminée ! Cliquez sur Rejouer.";
+            } else {
+                infoElement.textContent = `Tir ${maxShots - shotsRemaining + 1} / ${maxShots}. Visez et tirez !`;
+            }
+        }
+        function showGoalMessage() { /* ... */ if (isGameOver) return; hideSaveMessage(); goalMessageElement.style.display = 'block'; }
+        function hideGoalMessage() { /* ... */ goalMessageElement.style.display = 'none'; }
+        function showSaveMessage() { /* ... */ if (isGameOver) return; hideGoalMessage(); saveMessageElement.style.display = 'block'; }
+        function hideSaveMessage() { /* ... */ saveMessageElement.style.display = 'none'; }
+        function updateGoalie(deltaTime, time) { /* ... */ if (isGameOver) return; const goalieMinX = -goalWidth / 2 + goalieWidth / 2; const goalieMaxX = goalWidth / 2 - goalieWidth / 2; goalie.position.x = THREE.MathUtils.lerp(goalieMinX, goalieMaxX, (Math.sin(time * goalieSpeed * 0.7) + 1) / 2); }
+
+        function animate() {
+            requestAnimationFrame(animate); // Toujours demander le prochain frame
+            const deltaTime = clock.getDelta();
+            const time = clock.getElapsedTime();
+
+            // Mettre à jour seulement ce qui est nécessaire
+            if (!isGameOver) {
+                 updateGoalie(deltaTime, time);
+                 updatePhysics(deltaTime); // Gère isShooting/resetTimerActive à l'intérieur
+                 if (isAiming) updateAimingLine(); // Mettre à jour seulement si en train de viser
+            }
+
+            renderer.render(scene, camera); // Toujours faire le rendu
+        }
+
+        // --- DÉMARRAGE ---
+        init();
+
+    </script>
+</body>
+</html>
