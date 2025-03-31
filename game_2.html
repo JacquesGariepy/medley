@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stellar Shooter | 2D Space Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Press+Start+2P&display=swap');
+        
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Orbitron', sans-serif;
+            background: #0f0f1a;
+            color: white;
+        }
+        
+        #gameCanvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        
+        #uiOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+        }
+        
+        .neon-text {
+            text-shadow: 0 0 5px #00aaff, 0 0 10px #00aaff, 0 0 20px #00aaff;
+        }
+        
+        .glow {
+            box-shadow: 0 0 10px 2px rgba(0, 170, 255, 0.7);
+        }
+        
+        .star {
+            position: absolute;
+            background-color: white;
+            border-radius: 50%;
+            animation: twinkle 2s infinite alternate;
+        }
+        
+        @keyframes twinkle {
+            0% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .start-screen, .game-over-screen {
+            animation: pulse 2s infinite;
+        }
+        
+        .button {
+            pointer-events: auto;
+            transition: all 0.3s ease;
+        }
+        
+        .button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 0 15px 3px rgba(0, 170, 255, 0.9);
+        }
+        
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="h-screen w-full flex items-center justify-center relative">
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="uiOverlay" class="flex flex-col items-center justify-between p-6">
+        <div class="w-full flex justify-between items-center">
+            <div class="bg-black bg-opacity-50 p-3 rounded-lg">
+                <h2 class="neon-text text-xl">SCORE: <span id="scoreDisplay">0</span></h2>
+            </div>
+            <div class="bg-black bg-opacity-50 p-3 rounded-lg">
+                <h2 class="neon-text text-xl">LIVES: <span id="livesDisplay">3</span></h2>
+            </div>
+        </div>
+        
+        <div id="startScreen" class="start-screen bg-black bg-opacity-70 p-10 rounded-xl flex flex-col items-center">
+            <h1 class="text-5xl font-bold mb-6 neon-text">STELLAR SHOOTER</h1>
+            <p class="text-xl mb-8 text-center max-w-md">Defend your sector from incoming asteroids!<br>Use arrow keys to move and spacebar to shoot.</p>
+            <button id="startButton" class="button bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-8 rounded-full glow">
+                START MISSION
+            </button>
+        </div>
+        
+        <div id="gameOverScreen" class="game-over-screen hidden bg-black bg-opacity-70 p-10 rounded-xl flex flex-col items-center">
+            <h1 class="text-5xl font-bold mb-6 text-red-400 neon-text">MISSION FAILED</h1>
+            <p class="text-2xl mb-4">Final Score: <span id="finalScore" class="text-blue-300">0</span></p>
+            <p class="text-xl mb-8">Can you do better next time?</p>
+            <button id="restartButton" class="button bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-8 rounded-full glow">
+                TRY AGAIN
+            </button>
+        </div>
+        
+        <div id="bgStars"></div>
+    </div>
+
+    <script>
+        // Game Constants
+        const CANVAS_WIDTH = window.innerWidth;
+        const CANVAS_HEIGHT = window.innerHeight;
+        const PLAYER_SPEED = 8;
+        const BULLET_SPEED = 12;
+        const ASTEROID_SPEED = 3;
+        const ASTEROID_MIN_SIZE = 30;
+        const ASTEROID_MAX_SIZE = 80;
+        const SPARK_COLORS = ['#ff0000', '#ff7700', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff'];
+        
+        // Game State
+        let gameRunning = false;
+        let score = 0;
+        let lives = 3;
+        let level = 1;
+        let asteroids = [];
+        let bullets = [];
+        let sparks = [];
+        let stars = [];
+        let keys = {};
+        
+        // DOM Elements
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const livesDisplay = document.getElementById('livesDisplay');
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const startButton = document.getElementById('startButton');
+        const restartButton = document.getElementById('restartButton');
+        const finalScore = document.getElementById('finalScore');
+        const bgStars = document.getElementById('bgStars');
+        
+        // Player Object
+        const player = {
+            x: CANVAS_WIDTH / 2,
+            y: CANVAS_HEIGHT - 100,
+            width: 50,
+            height: 50,
+            speed: PLAYER_SPEED,
+            color: '#00aaff',
+            draw() {
+                ctx.save();
+                ctx.fillStyle = this.color;
+                
+                // Draw spaceship
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y - 20);
+                ctx.lineTo(this.x + 20, this.y + 20);
+                ctx.lineTo(this.x - 20, this.y + 20);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Draw glow
+                ctx.shadowColor = '#00aaff';
+                ctx.shadowBlur = 20;
+                ctx.fill();
+                ctx.restore();
+                
+                // Draw engine glow
+                if (keys['ArrowDown']) {
+                    ctx.save();
+                    ctx.fillStyle = '#ff6600';
+                    ctx.beginPath();
+                    ctx.moveTo(this.x - 15, this.y + 20);
+                    ctx.lineTo(this.x, this.y + 40);
+                    ctx.lineTo(this.x + 15, this.y + 20);
+                    ctx.closePath();
+                    ctx.shadowColor = '#ff6600';
+                    ctx.shadowBlur = 15;
+                    ctx.fill();
+                    ctx.restore();
+                }
+            },
+            move() {
+                if (keys['ArrowLeft'] && this.x > this.width / 2) {
+                    this.x -= this.speed;
+                }
+                if (keys['ArrowRight'] && this.x < CANVAS_WIDTH - this.width / 2) {
+                    this.x += this.speed;
+                }
+                if (keys['ArrowUp'] && this.y > this.height / 2) {
+                    this.y -= this.speed;
+                }
+                if (keys['ArrowDown'] && this.y < CANVAS_HEIGHT - this.height / 2) {
+                    this.y += this.speed;
+                }
+            }
+        };
+        
+        // Initialize game
+        function init() {
+            // Set canvas size
+            canvas.width = CANVAS_WIDTH;
+            canvas.height = CANVAS_HEIGHT;
+            
+            // Create background stars
+            createBackgroundStars();
+            
+            // Event listeners
+            window.addEventListener('keydown', (e) => keys[e.code] = true);
+            window.addEventListener('keyup', (e) => keys[e.code] = false);
+            window.addEventListener('keydown', (e) => {
+                if (e.code === 'Space' && gameRunning) {
+                    shoot();
+                }
+            });
+            
+            startButton.addEventListener('click', startGame);
+            restartButton.addEventListener('click', restartGame);
+        }
+        
+        // Create background stars
+        function createBackgroundStars() {
+            for (let i = 0; i < 200; i++) {
+                const star = document.createElement('div');
+                const size = Math.random() * 3;
+                const opacity = Math.random();
+                const duration = 2 + Math.random() * 3;
+                
+                star.className = 'star';
+                star.style.width = `${size}px`;
+                star.style.height = `${size}px`;
+                star.style.left = `${Math.random() * 100}%`;
+                star.style.top = `${Math.random() * 100}%`;
+                star.style.opacity = opacity;
+                star.style.animationDuration = `${duration}s`;
+                
+                bgStars.appendChild(star);
+                stars.push(star);
+            }
+        }
+        
+        // Start game
+        function startGame() {
+            gameRunning = true;
+            score = 0;
+            lives = 3;
+            level = 1;
+            asteroids = [];
+            bullets = [];
+            sparks = [];
+            
+            startScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            
+            updateScore();
+            updateLives();
+            
+            // Create initial asteroids
+            for (let i = 0; i < 5; i++) {
+                spawnAsteroid();
+            }
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Game loop
+        function gameLoop() {
+            if (!gameRunning) return;
+            
+            // Clear canvas
+            ctx.fillStyle = 'rgba(10, 10, 30, 0.2)';
+            ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+            
+            // Update and draw objects
+            player.move();
+            player.draw();
+            
+            updateBullets();
+            updateAsteroids();
+            updateSparks();
+            
+            checkCollisions();
+            
+            // Level progression
+            if (score > level * 1000) {
+                level++;
+                for (let i = 0; i < level; i++) {
+                    spawnAsteroid();
+                }
+            }
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Spawn a new asteroid
+        function spawnAsteroid() {
+            const size = Math.random() * (ASTEROID_MAX_SIZE - ASTEROID_MIN_SIZE) + ASTEROID_MIN_SIZE;
+            const speed = ASTEROID_SPEED + Math.random() * level;
+            
+            const asteroid = {
+                x: Math.random() * (CANVAS_WIDTH - size),
+                y: -size,
+                width: size,
+                height: size,
+                speed: speed,
+                rotation: 0,
+                rotationSpeed: (Math.random() - 0.5) * 0.05,
+                color: `hsl(${Math.random() * 60 + 20}, 70%, 50%)`,
+                draw() {
+                    ctx.save();
+                    ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+                    ctx.rotate(this.rotation);
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(0, -this.height / 2 * 0.8);
+                    ctx.lineTo(this.width / 2 * 0.8, -this.height / 4);
+                    ctx.lineTo(this.width / 2, this.height / 2 * 0.7);
+                    ctx.lineTo(0, this.height / 2);
+                    ctx.lineTo(-this.width / 2, this.height / 2 * 0.7);
+                    ctx.lineTo(-this.width / 2 * 0.8, -this.height / 4);
+                    ctx.closePath();
+                    
+                    ctx.fillStyle = this.color;
+                    ctx.shadowColor = this.color;
+                    ctx.shadowBlur = 10;
+                    ctx.fill();
+                    
+                    ctx.restore();
+                },
+                update() {
+                    this.y += this.speed;
+                    this.rotation += this.rotationSpeed;
+                    
+                    // Wrap around screen
+                    if (this.x > CANVAS_WIDTH + this.width) {
+                        this.x = -this.width;
+                    } else if (this.x < -this.width) {
+                        this.x = CANVAS_WIDTH + this.width;
+                    }
+                }
+            };
+            
+            asteroids.push(asteroid);
+        }
+        
+        // Shoot a bullet
+        function shoot() {
+            const bullet = {
+                x: player.x,
+                y: player.y - 30,
+                width: 4,
+                height: 15,
+                speed: BULLET_SPEED,
+                draw() {
+                    ctx.save();
+                    ctx.fillStyle = '#ffffff';
+                    ctx.shadowColor = '#00aaff';
+                    ctx.shadowBlur = 10;
+                    ctx.fillRect(this.x - this.width / 2, this.y, this.width, this.height);
+                    ctx.restore();
+                },
+                update() {
+                    this.y -= this.speed;
+                }
+            };
+            
+            bullets.push(bullet);
+            
+            // Play sound
+            playSound('shoot');
+        }
+        
+        // Update bullets
+        function updateBullets() {
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const bullet = bullets[i];
+                bullet.update();
+                bullet.draw();
+                
+                // Remove bullets that are off screen
+                if (bullet.y < -bullet.height) {
+                    bullets.splice(i, 1);
+                }
+            }
+        }
+        
+        // Update asteroids
+        function updateAsteroids() {
+            for (let i = asteroids.length - 1; i >= 0; i--) {
+                const asteroid = asteroids[i];
+                asteroid.update();
+                asteroid.draw();
+                
+                // Remove asteroids that are off screen
+                if (asteroid.y > CANVAS_HEIGHT + asteroid.height) {
+                    asteroids.splice(i, 1);
+                    spawnAsteroid(); // Replace with new asteroid
+                }
+            }
+        }
+        
+        // Create explosion particles
+        function createExplosion(x, y, color, count = 20) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 1 + Math.random() * 5;
+                const size = 2 + Math.random() * 5;
+                const lifetime = 30 + Math.random() * 50;
+                
+                sparks.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    size: size,
+                    color: color || SPARK_COLORS[Math.floor(Math.random() * SPARK_COLORS.length)],
+                    life: lifetime,
+                    maxLife: lifetime
+                });
+            }
+        }
+        
+        // Update particles
+        function updateSparks() {
+            for (let i = sparks.length - 1; i >= 0; i--) {
+                const spark = sparks[i];
+                
+                spark.x += spark.vx;
+                spark.y += spark.vy;
+                spark.life--;
+                
+                if (spark.life <= 0) {
+                    sparks.splice(i, 1);
+                    continue;
+                }
+                
+                const opacity = spark.life / spark.maxLife;
+                
+                ctx.save();
+                ctx.globalAlpha = opacity;
+                ctx.fillStyle = spark.color;
+                
+                // Create a glow effect
+                ctx.shadowColor = spark.color;
+                ctx.shadowBlur = 8;
+                ctx.beginPath();
+                ctx.arc(spark.x, spark.y, spark.size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.restore();
+            }
+        }
+        
+        // Check for collisions
+        function checkCollisions() {
+            // Bullet-Asteroid collisions
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const bullet = bullets[i];
+                
+                for (let j = asteroids.length - 1; j >= 0; j--) {
+                    const asteroid = asteroids[j];
+                    
+                    // Simple distance check
+                    const dx = (asteroid.x + asteroid.width / 2) - bullet.x;
+                    const dy = (asteroid.y + asteroid.height / 2) - bullet.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < asteroid.width / 2) {
+                        // Collision detected
+                        createExplosion(asteroid.x + asteroid.width / 2, asteroid.y + asteroid.height / 2, asteroid.color, 20);
+                        
+                        // Remove bullet and asteroid
+                        bullets.splice(i, 1);
+                        asteroids.splice(j, 1);
+                        
+                        // Increase score based on asteroid size
+                        score += Math.floor(100 - asteroid.width);
+                        updateScore();
+                        
+                        // Spawn new asteroid
+                        spawnAsteroid();
+                        
+                        break;
+                    }
+                }
+            }
+            
+            // Player-Asteroid collisions
+            for (let i = asteroids.length - 1; i >= 0; i--) {
+                const asteroid = asteroids[i];
+                
+                // Simple distance check
+                const dx = (asteroid.x + asteroid.width / 2) - player.x;
+                const dy = (asteroid.y + asteroid.height / 2) - player.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < (asteroid.width / 2 + player.width / 2)) {
+                    // Collision detected
+                    createExplosion(asteroid.x + asteroid.width / 2, asteroid.y + asteroid.height / 2, asteroid.color, 50);
+                    createExplosion(player.x, player.y, player.color, 30);
+                    
+                    // Remove asteroid
+                    asteroids.splice(i, 1);
+                    
+                    // Decrease lives
+                    lives--;
+                    updateLives();
+                    
+                    // Check if game over
+                    if (lives <= 0) {
+                        gameOver();
+                        return;
+                    }
+                    
+                    // Spawn new asteroid
+                    spawnAsteroid();
+                    
+                    // Reset player position (brief invulnerability would be good here)
+                    player.x = CANVAS_WIDTH / 2;
+                    player.y = CANVAS_HEIGHT - 100;
+                }
+            }
+        }
+        
+        // Update score display
+        function updateScore() {
+            scoreDisplay.textContent = score;
+        }
+        
+        // Update lives display
+        function updateLives() {
+            livesDisplay.textContent = lives;
+        }
+        
+        // Game over
+        function gameOver() {
+            gameRunning = false;
+            finalScore.textContent = score;
+            gameOverScreen.classList.remove('hidden');
+            
+            // Play sound
+            playSound('explosion');
+        }
+        
+        // Restart game
+        function restartGame() {
+            gameOverScreen.classList.add('hidden');
+            startGame();
+        }
+        
+        // Simple sound effects
+        function playSound(type) {
+            if (type === 'shoot') {
+                const oscillator = new AudioContext().createOscillator();
+                const gain = new AudioContext().createGain();
+                
+                oscillator.connect(gain);
+                gain.connect(new AudioContext().destination);
+                
+                oscillator.type = 'square';
+                oscillator.frequency.value = 880;
+                gain.gain.exponentialRampToValueAtTime(0.00001, new AudioContext().currentTime + 0.3);
+                
+                oscillator.start();
+                oscillator.stop(new AudioContext().currentTime + 0.3);
+            } else if (type === 'explosion') {
+                const oscillator = new AudioContext().createOscillator();
+                const gain = new AudioContext().createGain();
+                
+                oscillator.connect(gain);
+                gain.connect(new AudioContext().destination);
+                
+                oscillator.type = 'sawtooth';
+                oscillator.frequency.value = 100;
+                oscillator.frequency.exponentialRampToValueAtTime(20, new AudioContext().currentTime + 1);
+                gain.gain.exponentialRampToValueAtTime(0.00001, new AudioContext().currentTime + 1);
+                
+                oscillator.start();
+                oscillator.stop(new AudioContext().currentTime + 1);
+            }
+        }
+        
+        // Start the game
+        init();
+    </script>
+</body>
+</html>
