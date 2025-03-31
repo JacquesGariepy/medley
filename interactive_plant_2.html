@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="fr"> 
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soin des Plantes Amélioré (Sauvegarde Locale)</title> 
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* --- Styles Globaux & Variables --- */
+        :root {
+            --primary-color: #4CAF50; /* Tons verts */
+            --secondary-color: #ffc107; /* Ambre pour soleil/lumière */
+            --water-color: #03A9F4; /* Bleu clair pour l'eau */
+            --energy-color: #FF9800; /* Orange pour énergie */
+            --danger-color: #f44336; /* Rouge pour flétrissement/danger */
+            --warning-color: #FFC107; /* Jaune/Orange pour assoiffé/basse énergie */
+            --healthy-color: #8BC34A; /* Vert clair pour heureux */
+            --background-color: #f4f8f4; /* Vert très clair */
+            --card-background: #ffffff;
+            --text-color: #333;
+            --subtle-text-color: #6c757d; /* Gris Bootstrap */
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --border-radius: 15px;
+            --font-family: 'Poppins', sans-serif;
+            --transition-speed: 0.4s; /* Vitesse pour transitions CSS */
+             --update-speed: 1s; /* Vitesse pour transitions JS (barres) */
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            height: 100%;
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--background-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 30px 15px;
+            line-height: 1.6;
+            background-image: linear-gradient(135deg, #e8f5e9 0%, #dcedc8 100%);
+        }
+
+        /* --- Carte Principale --- */
+        .live-plant-card {
+            background-color: var(--card-background);
+            border-radius: var(--border-radius);
+            box-shadow: 0 15px 35px var(--shadow-color);
+            padding: 35px 45px;
+            max-width: 650px;
+            width: 100%;
+            text-align: center;
+            overflow: hidden;
+            position: relative;
+            transition: transform var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+            border: 1px solid #c8e6c9; /* Bordure subtile */
+        }
+
+        /* --- En-tête --- */
+        .card-header {
+            margin-bottom: 20px; /* Réduit espace */
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .card-header h2 {
+            color: var(--primary-color);
+            margin-bottom: 5px;
+            font-size: 2.1em; /* Légèrement réduit */
+            font-weight: 700;
+        }
+
+        .card-header p {
+            color: var(--subtle-text-color);
+            font-size: 0.9em;
+            margin-bottom: 15px;
+        }
+
+        /* --- Configuration Utilisateur --- */
+        .user-setup {
+            margin-bottom: 20px;
+            padding: 12px; /* Réduit padding */
+            background-color: #f8fdf8;
+            border-radius: 10px;
+            border: 1px solid #e0f2f1;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 10px; /* Réduit gap */
+        }
+
+        .user-setup label {
+            font-weight: 600;
+            color: #555;
+            font-size: 0.95em;
+        }
+
+        .user-setup input[type="text"] {
+            padding: 8px 12px; /* Réduit padding */
+            border: 1px solid #ccc;
+            border-radius: 6px; /* Coins moins arrondis */
+            font-size: 0.95em;
+            flex-grow: 1;
+            min-width: 150px;
+            transition: all 0.3s ease;
+        }
+        .user-setup input[type="text"]:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
+        }
+
+        /* --- Statut Sauvegarde --- */
+        #save-status {
+            font-size: 0.8em; /* Plus petit */
+            font-weight: 500;
+            color: var(--subtle-text-color);
+            background-color: #eeeeee;
+            padding: 4px 10px; /* Réduit padding */
+            border-radius: 12px;
+            display: inline-block;
+            border: 1px solid #e0e0e0;
+            transition: background-color 0.5s ease, color 0.5s ease;
+            min-width: 70px;
+            text-align: center;
+        }
+        #save-status.saved { background-color: #e8f5e9; color: var(--primary-color); border-color: #a5d6a7; }
+        #save-status.error { background-color: #ffebee; color: var(--danger-color); border-color: #ef9a9a; }
+        #save-status.saving { background-color: #fff9c4; color: #f57f17; border-color: #fff59d; }
+
+
+        /* --- Zone Affichage Plante --- */
+        .plant-display {
+            margin: 25px 0; /* Réduit marge */
+            padding: 25px;
+            background-color: #f1f8e9;
+            border-radius: var(--border-radius);
+            border: 2px dashed var(--primary-color);
+            position: relative;
+            min-height: 300px; /* Augmente hauteur pour barres énergie/stade */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center; /* Centre verticalement */
+        }
+
+        #plant-icon-container {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 15px; /* Réduit espace */
+        }
+
+        #plant-icon {
+            font-size: 6.5em; /* Légèrement réduit */
+            color: var(--primary-color);
+            transition: transform var(--transition-speed) cubic-bezier(0.68, -0.55, 0.27, 1.55),
+                        color var(--transition-speed) ease;
+            display: block;
+        }
+        /* Styles États Plante (icônes spécifiques par stade) */
+        /* Les classes wilting, thirsty, healthy, happy modifient couleur/transform */
+        #plant-icon.wilting { color: var(--danger-color); transform: rotate(-8deg) scale(0.9); }
+        #plant-icon.thirsty { color: var(--warning-color); transform: scale(0.95) rotate(-3deg); }
+        #plant-icon.needs-light { color: #795548; transform: scale(0.98); } /* Brunâtre */
+        #plant-icon.healthy { color: var(--healthy-color); transform: scale(1); }
+        #plant-icon.happy   { color: var(--primary-color); transform: scale(1.05) rotate(1deg); }
+        #plant-icon.growing { animation: growPulse 0.6s ease-out; }
+        #plant-icon.talking { animation: talkBounce 0.5s ease-in-out; } /* Animation pour parler */
+
+        @keyframes growPulse { /* Conservé */
+            0% { transform: scale(1.05); }
+            50% { transform: scale(1.20) rotate(3deg); color: #66bb6a; }
+            100% { transform: scale(1.05) rotate(1deg); }
+        }
+        @keyframes talkBounce {
+             0%, 100% { transform: translateY(0) scale(1.05) rotate(1deg); }
+             50% { transform: translateY(-5px) scale(1.08) rotate(2deg); }
+        }
+
+
+        /* Indicateurs Niveau Eau & Energie */
+        .level-indicator-container {
+             width: 90%;
+             margin: 8px auto; /* Espace réduit */
+             text-align: center;
+        }
+         .level-indicator-label {
+             font-size: 0.85em; /* Plus petit */
+             color: var(--subtle-text-color);
+             margin-bottom: 4px;
+             display: block;
+         }
+        .level-bar-container {
+            width: 100%;
+            height: 18px; /* Barre plus fine */
+            background-color: #e0e0e0;
+            border-radius: 9px;
+            margin: 0 auto 10px auto;
+            overflow: hidden;
+            border: 1px solid #ccc;
+            position: relative;
+        }
+
+        .level-bar { /* Classe commune pour eau et énergie */
+            width: 100%;
+            height: 100%;
+            border-radius: 9px 0 0 9px;
+            /* Transition plus rapide pour les mises à jour JS */
+            transition: width var(--update-speed) linear, background-color var(--transition-speed) ease;
+            background-image: linear-gradient(45deg, rgba(255, 255, 255, 0.2) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.2) 50%, rgba(255, 255, 255, 0.2) 75%, transparent 75%, transparent);
+            background-size: 30px 30px; /* Taille réduite pour barres plus fines */
+        }
+        #water-level-bar {
+            background-color: var(--water-color);
+            animation: पानीAnimate 2s linear infinite;
+        }
+        #energy-level-bar {
+             background-color: var(--energy-color);
+             animation: energyAnimate 2.5s linear infinite reverse; /* Animation différente */
+        }
+
+        @keyframes पानीAnimate {
+            from { background-position: 0 0; }
+            to { background-position: 30px 0; }
+        }
+        @keyframes energyAnimate {
+            from { background-position: 0 0; }
+            to { background-position: -30px 0; }
+        }
+
+        /* Stade de Croissance */
+        #growth-stage {
+             font-size: 0.9em;
+             font-weight: 600;
+             color: var(--primary-color);
+             margin-top: 10px;
+             background-color: #e8f5e9;
+             padding: 3px 8px;
+             border-radius: 10px;
+             border: 1px solid var(--healthy-color);
+        }
+
+
+        #plant-status {
+            font-weight: 600;
+            color: var(--subtle-text-color);
+            min-height: 22px; /* Réduit */
+            transition: color var(--transition-speed) ease;
+            font-size: 1.1em; /* Réduit */
+            margin-top: 8px; /* Réduit */
+        }
+        /* Couleurs de statut */
+        #plant-status.wilting { color: var(--danger-color); }
+        #plant-status.thirsty { color: var(--warning-color); }
+        #plant-status.needs-light { color: #a1887f; } /* Brunâtre */
+        #plant-status.healthy { color: var(--healthy-color); }
+        #plant-status.happy   { color: var(--primary-color); }
+
+        /* Indicateur Lumière */
+        #light-indicator {
+            position: absolute;
+            top: 15px; /* Remonté */
+            right: 20px;
+            font-size: 2em; /* Réduit */
+            color: #bdbdbd;
+            transition: color var(--transition-speed) ease, text-shadow var(--transition-speed) ease;
+        }
+        #light-indicator.on {
+            color: var(--secondary-color);
+            text-shadow: 0 0 10px rgba(255, 193, 7, 0.6);
+        }
+
+        /* --- Contrôles --- */
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px; /* Espace réduit */
+            margin-top: 25px; /* Réduit */
+            flex-wrap: wrap;
+        }
+
+        .control-button {
+            color: white;
+            border: none;
+            border-radius: 40px;
+            padding: 12px 25px; /* Padding réduit */
+            font-size: 1em; /* Taille réduite */
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition-speed) ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.12);
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            min-width: 130px;
+        }
+        .control-button:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+        }
+        .control-button:active {
+            transform: translateY(0px) scale(0.98);
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+        }
+         .control-button:disabled {
+            background-color: #bdbdbd !important;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+            opacity: 0.65;
+        }
+        .control-button i {
+            font-size: 1.2em; /* Icônes réduites */
+        }
+
+        #water-button { background-color: var(--water-color); }
+        #water-button:hover:not(:disabled) { background-color: #0288d1; }
+
+        #toggle-light-button { background-color: var(--secondary-color); }
+        #toggle-light-button:hover:not(:disabled) { background-color: #ffa000; }
+
+        #talk-button { background-color: var(--healthy-color); } /* Nouveau bouton */
+        #talk-button:hover:not(:disabled) { background-color: #689f38; }
+
+
+        /* --- Journal Actions --- */
+        .action-log {
+            margin-top: 30px; /* Réduit */
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        .action-log h3 {
+            color: #444;
+            margin-bottom: 12px;
+            text-align: left;
+            font-size: 1.2em; /* Réduit */
+            font-weight: 600;
+        }
+
+        #log-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 150px; /* Hauteur réduite */
+            overflow-y: auto;
+            text-align: left;
+            background-color: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 12px; /* Réduit */
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary-color) #f0f0f0;
+        }
+        #log-list::-webkit-scrollbar { width: 8px; }
+        #log-list::-webkit-scrollbar-track { background: #f0f0f0; border-radius: 4px;}
+        #log-list::-webkit-scrollbar-thumb { background-color: var(--primary-color); border-radius: 4px; border: 2px solid #f0f0f0; }
+
+
+        #log-list li {
+            padding: 6px 10px; /* Réduit */
+            border-bottom: 1px dashed #e0e0e0;
+            font-size: 0.9em; /* Réduit */
+            color: #444;
+            opacity: 0;
+            animation: fadeInLog 0.6s ease forwards;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        #log-list li:last-child { border-bottom: none; }
+        #log-list li .log-message { flex-grow: 1; margin-right: 10px; }
+        #log-list li .log-user { font-weight: 700; color: var(--primary-color); margin-right: 5px; }
+        #log-list li .log-time { font-size: 0.8em; color: #999; white-space: nowrap; margin-left: auto; }
+
+        @keyframes fadeInLog {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* --- Pied de Page --- */
+        .card-footer {
+            margin-top: 25px; /* Réduit */
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+            font-size: 0.8em; /* Réduit */
+            color: var(--subtle-text-color);
+        }
+
+        /* --- Responsive Design --- */
+        @media (max-width: 700px) {
+            body { padding: 20px 10px; }
+            .live-plant-card { padding: 25px 20px; }
+            .card-header h2 { font-size: 1.8em; }
+            #plant-icon { font-size: 6em; }
+            .controls { gap: 10px; } /* Réduit gap */
+            .control-button {
+                padding: 10px 20px; /* Réduit padding */
+                font-size: 0.95em; /* Réduit */
+                width: 48%; /* Ajuste largeur pour 3 boutons potentiels */
+                min-width: 110px;
+                gap: 8px;
+            }
+             .control-button i { font-size: 1.1em; }
+            .user-setup { flex-direction: column; align-items: stretch; gap: 8px; }
+            .user-setup input[type="text"] { width: 100%; }
+            #log-list li { font-size: 0.85em; }
+             #log-list li .log-time { margin-left: 0; width: 100%; text-align: right; margin-top: 2px; }
+        }
+         @media (max-width: 450px) {
+             .control-button { width: 100%; } /* Empile boutons */
+              #plant-icon { font-size: 5em; }
+            .live-plant-card { padding: 20px 15px; }
+             .level-indicator-label { font-size: 0.8em; }
+             #plant-status { font-size: 1em; }
+             #growth-stage { font-size: 0.85em; }
+         }
+
+        /* --- Animation Entrée --- */
+        @keyframes fadeInCard {
+            from { opacity: 0; transform: translateY(25px) scale(0.97); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .live-plant-card { animation: fadeInCard 0.8s cubic-bezier(0.25, 0.8, 0.25, 1) forwards; }
+
+    </style>
+</head>
+<body>
+
+    <main class="live-plant-card" id="mainCard">
+        <header class="card-header">
+            <h2>Ma Plante Personnelle</h2> 
+            <p>Prenez soin de votre plante numérique ! (Sauvegarde Locale)</p>
+            <div class="user-setup">
+                <label for="username">Votre Nom :</label>
+                <input type="text" id="username" placeholder="Entrez votre nom">
+                <div id="save-status">Chargé</div> 
+            </div>
+        </header>
+
+        <section class="plant-display">
+            <div id="light-indicator" class="fas fa-lightbulb"></div>
+            <div id="plant-icon-container">
+                <i id="plant-icon" class="fas fa-seedling"></i> </div>
+             <div id="growth-stage">Graine</div>
+
+             <div class="level-indicator-container">
+                 <span class="level-indicator-label" id="water-level-label">Niveau d'Eau (100%)</span>
+                 <div class="level-bar-container">
+                     <div class="level-bar" id="water-level-bar"></div>
+                 </div>
+             </div>
+             <div class="level-indicator-container">
+                 <span class="level-indicator-label" id="energy-level-label">Niveau d'Énergie (100%)</span>
+                 <div class="level-bar-container">
+                     <div class="level-bar" id="energy-level-bar"></div>
+                 </div>
+             </div>
+
+            <p id="plant-status">Chargement de l'état...</p>
+        </section>
+
+        <section class="controls">
+            <button id="water-button" class="control-button" disabled>
+                <i class="fas fa-tint"></i> Arroser
+            </button>
+            <button id="toggle-light-button" class="control-button" disabled>
+                <i class="fas fa-sun"></i> Lumière
+            </button>
+             <button id="talk-button" class="control-button" disabled> <i class="fas fa-comment-dots"></i> Parler
+            </button>
+        </section>
+
+        <section class="action-log">
+            <h3>Journal d'Activité</h3>
+            <ul id="log-list"></ul>
+        </section>
+
+        <footer class="card-footer">
+            L'état de la plante est sauvegardé localement dans votre navigateur.
+            Ce jeu n'est pas multijoueur.
+        </footer>
+    </main>
+
+    
+    <script>
+        // --- Clé pour localStorage ---
+        const LOCAL_STORAGE_KEY = 'maPlanteLocaleData_v2'; // Clé différente pour éviter conflits v1
+
+        // --- Références DOM ---
+        const saveStatusEl = document.getElementById('save-status');
+        const usernameInput = document.getElementById('username');
+        const plantIcon = document.getElementById('plant-icon');
+        const plantStatus = document.getElementById('plant-status');
+        const waterButton = document.getElementById('water-button');
+        const toggleLightButton = document.getElementById('toggle-light-button');
+        const talkButton = document.getElementById('talk-button'); // Nouveau bouton
+        const lightIndicator = document.getElementById('light-indicator');
+        const lightButtonIcon = toggleLightButton.querySelector('i');
+        const logList = document.getElementById('log-list');
+        const waterLevelBar = document.getElementById('water-level-bar');
+        const waterLevelLabel = document.getElementById('water-level-label');
+        const energyLevelBar = document.getElementById('energy-level-bar'); // Nouvelle barre
+        const energyLevelLabel = document.getElementById('energy-level-label'); // Nouveau label
+        const growthStageEl = document.getElementById('growth-stage'); // Élément pour stade
+
+        // --- Constantes Jeu ---
+        const MAX_LOG_ENTRIES = 15;
+        const WATER_PER_CLICK = 30; // Augmenté un peu
+        const WATER_DEPLETION_RATE_PER_HOUR = 4; // Légèrement réduit
+        const ENERGY_GAIN_RATE_PER_HOUR = 15; // Gain d'énergie avec lumière
+        const ENERGY_DEPLETION_RATE_PER_HOUR = 8; // Perte d'énergie sans lumière
+        const TALK_COOLDOWN = 60 * 1000; // 60 secondes cooldown pour parler
+        const TALK_ENERGY_BOOST = 5; // Petit boost d'énergie en parlant
+
+        const GAME_LOOP_INTERVAL = 1000; // Boucle de jeu toutes les secondes (1000ms)
+        const SAVE_INTERVAL = 15 * 1000; // Sauvegarde toutes les 15 secondes
+
+        // Stades de croissance et conditions (exemple simple basé sur le temps et la santé)
+        const GROWTH_STAGES = {
+            GRAINE: { name: "Graine", icon: "fa-seedling", nextStage: 'POUSSE', timeThreshold: 0 }, // Icone initiale
+            POUSSE: { name: "Pousse", icon: "fa-seedling", nextStage: 'JEUNE', timeThreshold: 1 * 60 * 60 * 1000 }, // 1 heure
+            JEUNE: { name: "Jeune Plante", icon: "fa-leaf", nextStage: 'MATURE', timeThreshold: 6 * 60 * 60 * 1000 }, // 6 heures
+            MATURE: { name: "Plante Mature", icon: "fa-spa", nextStage: 'FLORAISON', timeThreshold: 24 * 60 * 60 * 1000 }, // 24 heures
+            FLORAISON: { name: "En Fleur", icon: "fa-fan", nextStage: null, timeThreshold: Infinity } // Stade final, icone éventail/fleur stylisée
+        };
+
+
+        // --- État Local (Données du jeu) ---
+        let gameState = {
+            username: "Jardinier",
+            plantState: null, // Contiendra { waterLevel, energyLevel, isLightOn, growthStage, timeBorn, lastUpdateTime, ... }
+            logs: [],
+            isSaving: false,
+            lastSaveTime: 0, // Pour sauvegarde périodique
+            gameLoopTimer: null, // Référence au timer de la boucle
+            lastTalkTime: 0, // Pour cooldown "Parler"
+        };
+
+        // --- Fonctions Utilitaires ---
+        function getCurrentTimestamp() { return Date.now(); }
+
+        function formatTime(timestamp) {
+            if (!timestamp) return '';
+            const tsNumber = Number(timestamp);
+            if (isNaN(tsNumber)) return '';
+            return new Date(tsNumber).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+         // --- Mise à Jour UI ---
+        function updatePlantUI(state) {
+            if (!state) {
+                // État initial ou erreur de chargement
+                plantIcon.className = 'fas fa-question-circle';
+                plantStatus.textContent = "Prêt à commencer !";
+                waterLevelBar.style.width = `100%`;
+                waterLevelLabel.textContent = `Niveau d'Eau (100%)`;
+                energyLevelBar.style.width = `100%`;
+                energyLevelLabel.textContent = `Niveau d'Énergie (100%)`;
+                growthStageEl.textContent = GROWTH_STAGES.GRAINE.name; // Stade initial
+                lightIndicator.classList.remove('on');
+                lightButtonIcon.className = 'fas fa-sun';
+                waterButton.disabled = gameState.isSaving;
+                toggleLightButton.disabled = gameState.isSaving;
+                talkButton.disabled = gameState.isSaving;
+                return;
+            }
+
+            // Assure que les niveaux sont entre 0 et 100
+            const displayWaterLevel = Math.max(0, Math.min(100, state.waterLevel || 0));
+            const displayEnergyLevel = Math.max(0, Math.min(100, state.energyLevel || 0));
+
+            // Détermine Santé & Statut Texte
+            let health = "healthy"; // État par défaut
+            let statusText = "Se porte bien.";
+            let healthClass = "healthy"; // Classe CSS pour statut
+
+            if (displayWaterLevel <= 0) {
+                health = "wilting";
+                healthClass = "wilting";
+                statusText = "La plante a flétri ! 😭";
+            } else if (displayWaterLevel < 30) {
+                health = "thirsty";
+                healthClass = "thirsty";
+                statusText = "Semble assoiffée...";
+            } else if (displayEnergyLevel < 20) {
+                health = "needs-light"; // Nouvel état
+                healthClass = "needs-light";
+                statusText = "A besoin de lumière...";
+            } else if (displayWaterLevel < 50 || displayEnergyLevel < 50) {
+                // Reste 'healthy' mais message moins enthousiaste
+                 statusText = "Se maintient.";
+            } else { // Eau et énergie OK
+                 health = "happy";
+                 healthClass = "happy";
+                 statusText = "Se sent super bien ! ✨";
+                 // Si en fleur, message spécial
+                 if (state.growthStage === 'FLORAISON') {
+                     statusText = "Magnifiquement fleurie ! 🌸";
+                 }
+            }
+
+            // Màj Icône Plante (basée sur stade de croissance)
+            const currentStageData = GROWTH_STAGES[state.growthStage || 'GRAINE'];
+            plantIcon.className = `fas ${currentStageData.icon} ${health}`; // Applique icone stade + classe santé
+
+            // Màj Texte Statut et classe CSS
+            plantStatus.textContent = statusText;
+            plantStatus.className = healthClass;
+
+            // Màj Stade de Croissance Affiché
+            growthStageEl.textContent = currentStageData.name;
+
+            // Màj Barres Eau & Energie (avec transition)
+            const waterPercent = Math.round(displayWaterLevel);
+            const energyPercent = Math.round(displayEnergyLevel);
+            waterLevelBar.style.width = `${waterPercent}%`;
+            waterLevelLabel.textContent = `Niveau d'Eau (${waterPercent}%)`;
+            energyLevelBar.style.width = `${energyPercent}%`;
+            energyLevelLabel.textContent = `Niveau d'Énergie (${energyPercent}%)`;
+
+            // Change couleur barres selon niveau
+            waterLevelBar.style.backgroundColor = (displayWaterLevel < 30) ? 'var(--warning-color)' : 'var(--water-color)';
+             if (health === 'wilting') waterLevelBar.style.backgroundColor = 'var(--danger-color)';
+
+            energyLevelBar.style.backgroundColor = (displayEnergyLevel < 30) ? 'var(--warning-color)' : 'var(--energy-color)';
+
+            // Màj Indicateur & Bouton Lumière
+            lightIndicator.classList.toggle('on', !!state.isLightOn);
+            lightButtonIcon.className = `fas ${state.isLightOn ? 'fa-moon' : 'fa-sun'}`;
+            const lightButtonText = state.isLightOn ? 'Éteindre' : 'Allumer';
+            toggleLightButton.innerHTML = `<i class="${lightButtonIcon.className}"></i> ${lightButtonText}`;
+
+            // Activer/Désactiver Contrôles
+            const isWilted = health === "wilting";
+            const now = getCurrentTimestamp();
+            const talkReady = (now - gameState.lastTalkTime) > TALK_COOLDOWN;
+
+            waterButton.disabled = isWilted || gameState.isSaving;
+            toggleLightButton.disabled = isWilted || gameState.isSaving; // On ne peut pas changer lumière si flétrie
+            talkButton.disabled = isWilted || gameState.isSaving || !talkReady; // Désactivé si flétri, sauvegarde, ou cooldown
+        }
+
+        // --- Journalisation ---
+        function updateLogUI(logs) {
+            // ... (fonction inchangée par rapport à la v1 localStorage) ...
+             if (!Array.isArray(logs)) { logs = []; }
+            logList.innerHTML = '';
+            const sortedLogs = [...logs].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            const logsToShow = sortedLogs.slice(0, MAX_LOG_ENTRIES);
+            logsToShow.forEach((logData) => {
+                 const logItem = document.createElement('li');
+                 const messageSpan = document.createElement('span');
+                 messageSpan.className = 'log-message';
+                 const userSpan = document.createElement('span');
+                 userSpan.className = 'log-user';
+                 userSpan.textContent = logData.user || 'Anonyme';
+                 const actionText = document.createTextNode(` ${logData.action || ''}. `);
+                 messageSpan.appendChild(userSpan);
+                 messageSpan.appendChild(actionText);
+                 const timeSpan = document.createElement('span');
+                 timeSpan.className = 'log-time';
+                 timeSpan.textContent = formatTime(logData.timestamp);
+                 logItem.appendChild(messageSpan);
+                 logItem.appendChild(timeSpan);
+                 logList.appendChild(logItem);
+            });
+             Array.from(logList.children).forEach(li => {
+                 li.style.animation = 'none';
+                 li.offsetHeight; /* Force reflow */
+                 li.style.animation = '';
+             });
+        }
+
+        function addLogEntry(user, action) {
+            // ... (fonction inchangée par rapport à la v1 localStorage) ...
+             const newLog = { user: user, action: action, timestamp: getCurrentTimestamp() };
+             gameState.logs.unshift(newLog);
+             if (gameState.logs.length > MAX_LOG_ENTRIES * 2) {
+                 gameState.logs = gameState.logs.slice(0, MAX_LOG_ENTRIES * 2);
+             }
+             updateLogUI(gameState.logs);
+        }
+
+        // --- Sauvegarde et Chargement LocalStorage ---
+        function loadStateFromLocal() {
+            try {
+                const savedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+                if (savedData) {
+                    const parsedData = JSON.parse(savedData);
+                    // Restaure l'état en s'assurant que les nouvelles clés existent
+                    gameState.username = parsedData.username || "Jardinier";
+                    gameState.plantState = parsedData.plantState || null;
+                    gameState.logs = Array.isArray(parsedData.logs) ? parsedData.logs : [];
+                    gameState.lastTalkTime = parsedData.lastTalkTime || 0; // Charge aussi lastTalkTime
+
+                    // Vérifie si l'état de la plante chargé est valide et contient les nouvelles clés
+                    if (gameState.plantState) {
+                         gameState.plantState.energyLevel = gameState.plantState.energyLevel ?? 100; // Valeur par défaut si absente
+                         gameState.plantState.growthStage = gameState.plantState.growthStage || 'GRAINE';
+                         gameState.plantState.timeBorn = gameState.plantState.timeBorn || getCurrentTimestamp(); // Initialise si absent
+                         gameState.plantState.lastUpdateTime = gameState.plantState.lastUpdateTime || getCurrentTimestamp();
+                    } else {
+                         // Si plantState est null après chargement, initialise complètement
+                         initializeGameState(false); // false pour ne pas re-sauvegarder immédiatement
+                    }
+
+                    console.log("État chargé depuis localStorage.");
+                    saveStatusEl.textContent = 'Chargé';
+                    saveStatusEl.className = 'saved';
+                } else {
+                    console.log("Aucun état sauvegardé trouvé. Initialisation.");
+                    initializeGameState(true); // true pour sauvegarder l'état initial
+                    saveStatusEl.textContent = 'Nouveau';
+                    saveStatusEl.className = '';
+                }
+            } catch (error) {
+                console.error("Erreur lors du chargement depuis localStorage:", error);
+                saveStatusEl.textContent = 'Erreur Charg.';
+                saveStatusEl.className = 'error';
+                initializeGameState(true); // Initialise et sauvegarde en cas d'erreur
+            }
+        }
+
+        function saveStateToLocal() {
+            // Ne sauvegarde que si assez de temps s'est écoulé depuis la dernière sauvegarde
+            const now = getCurrentTimestamp();
+            if (now - gameState.lastSaveTime < SAVE_INTERVAL && !gameState.isSaving) {
+                 //console.log("Sauvegarde skipée, trop tôt.");
+                 return;
+            }
+            // Si une sauvegarde est déjà en cours, on attend la prochaine tentative
+            if (gameState.isSaving) return;
+
+            gameState.isSaving = true;
+            gameState.lastSaveTime = now; // Met à jour l'heure de la dernière tentative de sauvegarde
+            saveStatusEl.textContent = 'Sauvegarde...';
+            saveStatusEl.className = 'saving';
+
+            // Utilise setTimeout pour rendre l'opération asynchrone et ne pas bloquer la boucle de jeu
+            setTimeout(() => {
+                try {
+                    const dataToSave = {
+                        username: gameState.username,
+                        plantState: gameState.plantState,
+                        logs: gameState.logs.slice(0, MAX_LOG_ENTRIES),
+                        lastTalkTime: gameState.lastTalkTime // Sauvegarde aussi lastTalkTime
+                    };
+                    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dataToSave));
+                    console.log("État sauvegardé dans localStorage.");
+
+                    saveStatusEl.textContent = 'Sauvegardé';
+                    saveStatusEl.className = 'saved';
+
+                } catch (error) {
+                    console.error("Erreur lors de la sauvegarde dans localStorage:", error);
+                    saveStatusEl.textContent = 'Erreur Sauv.';
+                    saveStatusEl.className = 'error';
+                } finally {
+                     gameState.isSaving = false;
+                     // L'UI sera mise à jour par la boucle de jeu, pas besoin ici
+                }
+            }, 10); // Délai minimal pour l'asynchronisme
+        }
+
+        // Fonction pour initialiser l'état du jeu
+        function initializeGameState(performSave = true) {
+             console.log("Initialisation du nouvel état de jeu.");
+             const now = getCurrentTimestamp();
+             gameState.plantState = {
+                 waterLevel: 100,
+                 energyLevel: 100, // Ajouté
+                 isLightOn: false,
+                 growthStage: 'GRAINE', // Ajouté
+                 timeBorn: now, // Ajouté
+                 lastUpdateTime: now,
+                 lastWateredBy: "Système",
+                 lastLightToggleBy: "Système"
+             };
+             // N'ajoute le log initial que si les logs sont vides
+             if (gameState.logs.length === 0) {
+                 addLogEntry("Système", "a planté une nouvelle graine !");
+             }
+             gameState.lastTalkTime = 0; // Reset cooldown parler
+
+             if (performSave) {
+                 saveStateToLocal(); // Sauvegarde cet état initial
+             }
+             // Met à jour l'UI immédiatement après initialisation
+             updatePlantUI(gameState.plantState);
+             updateLogUI(gameState.logs);
+        }
+
+        // --- Boucle de Jeu ---
+        function gameLoop() {
+             if (!gameState.plantState) {
+                 console.log("Boucle de jeu : état non initialisé, skip.");
+                 return; // Ne rien faire si l'état n'est pas chargé/initialisé
+             }
+
+             const now = getCurrentTimestamp();
+             const lastUpdate = gameState.plantState.lastUpdateTime || now;
+             const timeDiffMs = now - lastUpdate;
+             const timeDiffHours = timeDiffMs / (1000 * 60 * 60);
+
+             if (timeDiffMs <= 0) return; // Évite calcul si pas de temps écoulé
+
+             // 1. Calcul Épuisement/Gain Eau & Énergie
+             const waterDepletion = timeDiffHours * WATER_DEPLETION_RATE_PER_HOUR;
+             gameState.plantState.waterLevel = Math.max(0, gameState.plantState.waterLevel - waterDepletion);
+
+             let energyChange;
+             if (gameState.plantState.isLightOn) {
+                 energyChange = timeDiffHours * ENERGY_GAIN_RATE_PER_HOUR;
+                 gameState.plantState.energyLevel = Math.min(100, gameState.plantState.energyLevel + energyChange);
+             } else {
+                 energyChange = timeDiffHours * ENERGY_DEPLETION_RATE_PER_HOUR;
+                 gameState.plantState.energyLevel = Math.max(0, gameState.plantState.energyLevel - energyChange);
+             }
+
+             // 2. Mise à jour de l'heure de la dernière update
+             gameState.plantState.lastUpdateTime = now;
+
+             // 3. Vérification Croissance
+             const timeAliveMs = now - gameState.plantState.timeBorn;
+             const currentStage = gameState.plantState.growthStage;
+             const stageData = GROWTH_STAGES[currentStage];
+
+             if (stageData && stageData.nextStage) {
+                 const nextStageData = GROWTH_STAGES[stageData.nextStage];
+                 // Conditions de croissance : temps écoulé ET santé minimale
+                 if (timeAliveMs >= nextStageData.timeThreshold &&
+                     gameState.plantState.waterLevel > 50 && // Ex: besoin d'eau > 50%
+                     gameState.plantState.energyLevel > 50) { // Ex: besoin d'énergie > 50%
+
+                     gameState.plantState.growthStage = stageData.nextStage;
+                     addLogEntry("Système", `La plante est passée au stade : ${nextStageData.name} !`);
+                     console.log(`Growth stage advanced to: ${stageData.nextStage}`);
+                 }
+             }
+
+             // 4. Mise à jour UI (reflète les changements calculés)
+             updatePlantUI(gameState.plantState);
+
+             // 5. Sauvegarde Périodique
+             saveStateToLocal(); // La fonction interne gère la fréquence
+        }
+
+
+        // --- Actions du Jeu ---
+
+        function waterPlantAction() {
+            if (gameState.isSaving || !gameState.plantState) return;
+
+            const currentState = gameState.plantState;
+            // Recalcul rapide de l'eau juste avant d'ajouter (pour précision si clic rapide après chargement)
+            const now = getCurrentTimestamp();
+            let currentWater = currentState.waterLevel || 0;
+            if (currentState.lastUpdateTime) {
+                 const timeDiffMs = now - currentState.lastUpdateTime;
+                 if (timeDiffMs > 0) {
+                     const hoursDiff = timeDiffMs / (1000 * 60 * 60);
+                     currentWater = Math.max(0, currentState.waterLevel - (hoursDiff * WATER_DEPLETION_RATE_PER_HOUR));
+                 }
+            }
+
+            if (currentWater <= 0) {
+                console.log("Plante flétrie, ne peut arroser.");
+                addLogEntry(gameState.username, "a essayé d'arroser la plante flétrie");
+                saveStateToLocal();
+                return;
+            }
+
+            // Met à jour l'état directement
+            currentState.waterLevel = Math.min(100, currentWater + WATER_PER_CLICK);
+            currentState.lastUpdateTime = now; // Important de mettre à jour l'heure ici aussi
+            currentState.lastWateredBy = gameState.username;
+
+            addLogEntry(gameState.username, "a arrosé la plante");
+            updatePlantUI(currentState); // Met à jour UI immédiatement
+            saveStateToLocal(); // Déclenche une sauvegarde (qui vérifiera le délai)
+
+            // Feedback visuel
+            plantIcon.classList.add('growing');
+            setTimeout(() => { plantIcon.classList.remove('growing'); }, 600);
+        }
+
+        function toggleLightAction() {
+             if (gameState.isSaving || !gameState.plantState) return;
+
+             const currentState = gameState.plantState;
+             const now = getCurrentTimestamp();
+
+             // Si flétrie, on ne peut pas changer la lumière
+             if (currentState.waterLevel <= 0 && currentState.lastUpdateTime) { // Vérifie si flétrie (basé sur niveau actuel)
+                 const timeDiffMs = now - currentState.lastUpdateTime;
+                 if (timeDiffMs > 0) {
+                     const hoursDiff = timeDiffMs / (1000 * 60 * 60);
+                     const currentWater = Math.max(0, currentState.waterLevel - (hoursDiff * WATER_DEPLETION_RATE_PER_HOUR));
+                     if (currentWater <= 0) {
+                         console.log("Plante flétrie, ne peut changer la lumière.");
+                         addLogEntry(gameState.username, "a essayé de changer la lumière sur la plante flétrie");
+                         saveStateToLocal();
+                         return;
+                     }
+                 } else if (currentState.waterLevel <= 0) { // Si déjà à 0 sans calcul
+                      console.log("Plante flétrie, ne peut changer la lumière.");
+                      addLogEntry(gameState.username, "a essayé de changer la lumière sur la plante flétrie");
+                      saveStateToLocal();
+                      return;
+                 }
+             }
+
+
+             // Met à jour l'état
+             currentState.isLightOn = !currentState.isLightOn;
+             currentState.lastUpdateTime = now; // Met à jour l'heure pour recalcul énergie/eau
+             currentState.lastLightToggleBy = gameState.username;
+
+             const lightStatusText = currentState.isLightOn ? 'ON' : 'OFF';
+             addLogEntry(gameState.username, `a mis la lumière sur ${lightStatusText}`);
+             updatePlantUI(currentState);
+             saveStateToLocal();
+        }
+
+        function talkToPlantAction() {
+             if (gameState.isSaving || !gameState.plantState) return;
+
+             const now = getCurrentTimestamp();
+             if ((now - gameState.lastTalkTime) < TALK_COOLDOWN) {
+                 console.log("Cooldown 'Parler' actif.");
+                 addLogEntry(gameState.username, "a essayé de parler à la plante (cooldown)");
+                 // Optionnel: afficher message cooldown à l'utilisateur
+                 return;
+             }
+
+             const currentState = gameState.plantState;
+
+              // Vérifie si flétrie
+             let currentWater = currentState.waterLevel || 0;
+             if (currentState.lastUpdateTime) {
+                 const timeDiffMs = now - currentState.lastUpdateTime;
+                 if (timeDiffMs > 0) {
+                     const hoursDiff = timeDiffMs / (1000 * 60 * 60);
+                     currentWater = Math.max(0, currentState.waterLevel - (hoursDiff * WATER_DEPLETION_RATE_PER_HOUR));
+                 }
+             }
+             if (currentWater <= 0) {
+                 console.log("Plante flétrie, ne réagit pas.");
+                 addLogEntry(gameState.username, "a parlé à la plante flétrie");
+                 saveStateToLocal();
+                 return;
+             }
+
+
+             console.log("Talking to plant!");
+             gameState.lastTalkTime = now; // Met à jour l'heure du dernier "Parler"
+
+             // Applique le boost d'énergie
+             currentState.energyLevel = Math.min(100, currentState.energyLevel + TALK_ENERGY_BOOST);
+             // Important: Met aussi à jour lastUpdateTime pour que la boucle de jeu
+             // ne recalcule pas immédiatement l'énergie comme si du temps s'était écoulé sans gain.
+             currentState.lastUpdateTime = now;
+
+
+             addLogEntry(gameState.username, "a parlé gentiment à la plante.");
+             updatePlantUI(currentState); // Met à jour UI (montre boost énergie, active cooldown bouton)
+             saveStateToLocal();
+
+             // Feedback visuel "Parler"
+             plantIcon.classList.add('talking');
+             setTimeout(() => { plantIcon.classList.remove('talking'); }, 500);
+        }
+
+
+        // --- Écouteurs d'Événements ---
+        usernameInput.addEventListener('change', () => {
+            const newName = usernameInput.value.trim();
+            if (newName && newName !== gameState.username) {
+                const oldName = gameState.username;
+                gameState.username = newName;
+                console.log(`Nom utilisateur changé en ${gameState.username}`);
+                addLogEntry("Système", `${oldName} est maintenant connu comme ${gameState.username}`);
+                localStorage.setItem('plantCareUsername', gameState.username);
+                saveStateToLocal();
+            } else if (!newName) {
+                usernameInput.value = gameState.username;
+            }
+        });
+
+        waterButton.addEventListener('click', waterPlantAction);
+        toggleLightButton.addEventListener('click', toggleLightAction);
+        talkButton.addEventListener('click', talkToPlantAction); // Ajout écouteur
+
+        // --- Initialisation ---
+        function initializeApp() {
+            // Charge nom utilisateur
+            const savedUsername = localStorage.getItem('plantCareUsername');
+            if (savedUsername) { gameState.username = savedUsername; }
+            usernameInput.value = gameState.username;
+
+            // Charge l'état complet du jeu
+            loadStateFromLocal(); // Ceci appelle initializeGameState si nécessaire
+
+            // Met à jour l'UI initiale
+            // Fait à l'intérieur de loadStateFromLocal ou initializeGameState maintenant
+
+            // Démarre la boucle de jeu
+            if (gameState.gameLoopTimer) clearInterval(gameState.gameLoopTimer); // Nettoie ancien timer
+            gameState.gameLoopTimer = setInterval(gameLoop, GAME_LOOP_INTERVAL);
+
+            console.log("Application initialisée avec sauvegarde locale v2 et boucle de jeu démarrée.");
+        }
+
+        // Attend que le DOM soit chargé
+        document.addEventListener('DOMContentLoaded', initializeApp);
+
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Starry Night Collector</title>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+        }
+        
+        body {
+            overflow: hidden;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: white;
+        }
+        
+        #game-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #ui-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        #score-display {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 24px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 20px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+        }
+        
+        #score-display i {
+            margin-right: 10px;
+            color: gold;
+        }
+        
+        #time-display {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 24px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 20px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+        }
+        
+        #time-display i {
+            margin-right: 10px;
+            color: #ff5e5e;
+        }
+        
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+            z-index: 100;
+        }
+        
+        #game-title {
+            font-size: 72px;
+            margin-bottom: 30px;
+            color: #fff;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .start-button {
+            background: linear-gradient(45deg, #ff8a00, #e52e71);
+            border: none;
+            color: white;
+            padding: 15px 40px;
+            font-size: 24px;
+            border-radius: 50px;
+            cursor: pointer;
+            margin: 10px;
+            box-shadow: 0 4px 15px rgba(229, 46, 113, 0.4);
+            transition: all 0.3s ease;
+            pointer-events: auto;
+        }
+        
+        .start-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 7px 20px rgba(229, 46, 113, 0.6);
+        }
+        
+        .start-button:active {
+            transform: translateY(1px);
+        }
+        
+        #game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+            z-index: 100;
+        }
+        
+        #game-over-title {
+            font-size: 72px;
+            margin-bottom: 30px;
+            color: #ff5e5e;
+            text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+        }
+        
+        #final-score {
+            font-size: 36px;
+            margin-bottom: 30px;
+            color: #fff;
+        }
+        
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-size: 18px;
+            text-align: center;
+            max-width: 80%;
+        }
+        
+        #instructions i {
+            margin: 0 5px;
+            color: #0ff;
+        }
+        
+        #power-ups {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 10px;
+        }
+        
+        .power-up {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+            font-size: 18px;
+        }
+        
+        .power-up i {
+            margin-right: 10px;
+            font-size: 24px;
+        }
+        
+        .speed i { color: #0f0; }
+        .invincible i { color: #f00; }
+        .magnet i { color: #0ff; }
+        
+        #pause-button {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 18px;
+            cursor: pointer;
+            pointer-events: auto;
+            display: none;
+        }
+        
+        #level-display {
+            position: absolute;
+            top: 70px;
+            left: 20px;
+            font-size: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 8px 15px;
+            border-radius: 10px;
+        }
+        
+        #particles-js {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+    <div id="ui-container">
+        <div id="score-display"><i class="fas fa-star"></i> <span id="score">0</span></div>
+        <div id="time-display"><i class="fas fa-clock"></i> <span id="time">60</span>s</div>
+        <div id="level-display">Level <span id="level">1</span></div>
+        
+        <div id="power-ups">
+            <div class="power-up speed"><i class="fas fa-bolt"></i> <span id="speed-timer">0s</span></div>
+            <div class="power-up invincible"><i class="fas fa-shield-alt"></i> <span id="invincible-timer">0s</span></div>
+            <div class="power-up magnet"><i class="fas fa-magnet"></i> <span id="magnet-timer">0s</span></div>
+        </div>
+        
+        <div id="instructions">
+            Use <i class="fas fa-arrow-up"></i><i class="fas fa-arrow-down"></i><i class="fas fa-arrow-left"></i><i class="fas fa-arrow-right"></i> to move | Collect <i class="fas fa-star" style="color: gold;"></i> | Avoid <i class="fas fa-skull"></i>
+        </div>
+        
+        <button id="pause-button">
+            <i class="fas fa-pause"></i> Pause
+        </button>
+    </div>
+    
+    <div id="start-screen">
+        <h1 id="game-title">Starry Night Collector</h1>
+        <button class="start-button" id="start-button">
+            <i class="fas fa-play"></i> Start Game
+        </button>
+        <button class="start-button" id="how-to-play-button">
+            <i class="fas fa-question-circle"></i> How to Play
+        </button>
+    </div>
+    
+    <div id="game-over-screen">
+        <h1 id="game-over-title">Game Over</h1>
+        <div id="final-score">You collected <span id="final-score-value">0</span> stars!</div>
+        <button class="start-button" id="restart-button">
+            <i class="fas fa-redo"></i> Play Again
+        </button>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <script>
+        // Game variables
+        let scene, camera, renderer, controls;
+        let player, stars = [], obstacles = [];
+        let score = 0;
+        let timeLeft = 60;
+        let gameActive = false;
+        let gamePaused = false;
+        let level = 1;
+        
+        // Power-up variables
+        let speedActive = false;
+        let speedEndTime = 0;
+        let invincibleActive = false;
+        let invincibleEndTime = 0;
+        let magnetActive = false;
+        let magnetEndTime = 0;
+        
+        // Movement variables
+        const keys = {
+            ArrowUp: false,
+            ArrowDown: false,
+            ArrowLeft: false,
+            ArrowRight: false
+        };
+        
+        // Initialize the game
+        function init() {
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x020814);
+            
+            // Add fog for depth
+            scene.fog = new THREE.FogExp2(0x020814, 0.001);
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 5, 10);
+            camera.lookAt(0, 0, 0);
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('game-container').appendChild(renderer.domElement);
+            
+            // Add lights
+            const ambientLight = new THREE.AmbientLight(0x404040);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(1, 1, 1);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+            
+            // Create player
+            createPlayer();
+            
+            // Create initial stars and obstacles
+            createStars(10);
+            createObstacles(5);
+            
+            // Create ground
+            createGround();
+            
+            // Add event listeners
+            window.addEventListener('resize', onWindowResize);
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+            
+            // UI event listeners
+            document.getElementById('start-button').addEventListener('click', startGame);
+            document.getElementById('how-to-play-button').addEventListener('click', showInstructions);
+            document.getElementById('restart-button').addEventListener('click', restartGame);
+            document.getElementById('pause-button').addEventListener('click', togglePause);
+            
+            // Start the game loop
+            animate();
+            
+            // Initialize particles background
+            initParticles();
+        }
+        
+        function initParticles() {
+            particlesJS('particles-js', {
+                "particles": {
+                    "number": {
+                        "value": 100,
+                        "density": {
+                            "enable": true,
+                            "value_area": 800
+                        }
+                    },
+                    "color": {
+                        "value": "#ffffff"
+                    },
+                    "shape": {
+                        "type": "circle",
+                        "stroke": {
+                            "width": 0,
+                            "color": "#000000"
+                        },
+                        "polygon": {
+                            "nb_sides": 5
+                        }
+                    },
+                    "opacity": {
+                        "value": 0.5,
+                        "random": true,
+                        "anim": {
+                            "enable": true,
+                            "speed": 1,
+                            "opacity_min": 0.1,
+                            "sync": false
+                        }
+                    },
+                    "size": {
+                        "value": 3,
+                        "random": true,
+                        "anim": {
+                            "enable": true,
+                            "speed": 2,
+                            "size_min": 0.1,
+                            "sync": false
+                        }
+                    },
+                    "line_linked": {
+                        "enable": true,
+                        "distance": 150,
+                        "color": "#ffffff",
+                        "opacity": 0.4,
+                        "width": 1
+                    },
+                    "move": {
+                        "enable": true,
+                        "speed": 1,
+                        "direction": "none",
+                        "random": true,
+                        "straight": false,
+                        "out_mode": "out",
+                        "bounce": false,
+                        "attract": {
+                            "enable": false,
+                            "rotateX": 600,
+                            "rotateY": 1200
+                        }
+                    }
+                },
+                "interactivity": {
+                    "detect_on": "canvas",
+                    "events": {
+                        "onhover": {
+                            "enable": true,
+                            "mode": "grab"
+                        },
+                        "onclick": {
+                            "enable": true,
+                            "mode": "push"
+                        },
+                        "resize": true
+                    },
+                    "modes": {
+                        "grab": {
+                            "distance": 140,
+                            "line_linked": {
+                                "opacity": 1
+                            }
+                        },
+                        "bubble": {
+                            "distance": 400,
+                            "size": 40,
+                            "duration": 2,
+                            "opacity": 8,
+                            "speed": 3
+                        },
+                        "repulse": {
+                            "distance": 200,
+                            "duration": 0.4
+                        },
+                        "push": {
+                            "particles_nb": 4
+                        },
+                        "remove": {
+                            "particles_nb": 2
+                        }
+                    }
+                },
+                "retina_detect": true
+            });
+        }
+        
+        function createPlayer() {
+            const geometry = new THREE.SphereGeometry(0.5, 32, 32);
+            const material = new THREE.MeshPhongMaterial({ 
+                color: 0x4169E1,
+                shininess: 100,
+                emissive: 0x1E90FF,
+                emissiveIntensity: 0.2
+            });
+            
+            player = new THREE.Mesh(geometry, material);
+            player.castShadow = true;
+            player.position.y = 0.5;
+            scene.add(player);
+        }
+        
+        function createStars(count) {
+            for (let i = 0; i < count; i++) {
+                const geometry = new THREE.SphereGeometry(0.2, 16, 16);
+                const material = new THREE.MeshPhongMaterial({ 
+                    color: 0xFFFF00,
+                    emissive: 0xFFD700,
+                    emissiveIntensity: 0.5
+                });
+                
+                const star = new THREE.Mesh(geometry, material);
+                star.castShadow = true;
+                
+                // Position randomly within a certain range
+                star.position.x = (Math.random() - 0.5) * 40;
+                star.position.z = (Math.random() - 0.5) * 40;
+                star.position.y = 0.2;
+                
+                // Add rotation animation
+                star.userData.rotationSpeed = Math.random() * 0.05;
+                
+                scene.add(star);
+                stars.push(star);
+            }
+        }
+        
+        function createObstacles(count) {
+            for (let i = 0; i < count; i++) {
+                const height = 0.5 + Math.random() * 1.5;
+                const radius = 0.3 + Math.random() * 0.5;
+                const geometry = new THREE.CylinderGeometry(radius, radius, height, 16);
+                const material = new THREE.MeshPhongMaterial({ 
+                    color: 0xFF0000,
+                    emissive: 0x800000,
+                    emissiveIntensity: 0.1
+                });
+                
+                const obstacle = new THREE.Mesh(geometry, material);
+                obstacle.castShadow = true;
+                obstacle.receiveShadow = true;
+                
+                // Position randomly within a certain range
+                obstacle.position.x = (Math.random() - 0.5) * 40;
+                obstacle.position.z = (Math.random() - 0.5) * 40;
+                obstacle.position.y = height / 2;
+                
+                // Add slight tilt for more natural look
+                obstacle.rotation.x = (Math.random() - 0.5) * 0.2;
+                obstacle.rotation.z = (Math.random() - 0.5) * 0.2;
+                
+                scene.add(obstacle);
+                obstacles.push(obstacle);
+            }
+        }
+        
+        function createGround() {
+            const geometry = new THREE.PlaneGeometry(100, 100);
+            const textureLoader = new THREE.TextureLoader();
+            const texture = textureLoader.load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg');
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(10, 10);
+            
+            const material = new THREE.MeshStandardMaterial({ 
+                map: texture,
+                color: 0x228B22,
+                roughness: 0.8,
+                metalness: 0.2
+            });
+            
+            const ground = new THREE.Mesh(geometry, material);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        function onKeyDown(event) {
+            if (keys.hasOwnProperty(event.key)) {
+                keys[event.key] = true;
+            }
+        }
+        
+        function onKeyUp(event) {
+            if (keys.hasOwnProperty(event.key)) {
+                keys[event.key] = false;
+            }
+        }
+        
+        function updatePlayerPosition() {
+            const moveSpeed = speedActive ? 0.2 : 0.1;
+            
+            if (keys.ArrowUp) player.position.z -= moveSpeed;
+            if (keys.ArrowDown) player.position.z += moveSpeed;
+            if (keys.ArrowLeft) player.position.x -= moveSpeed;
+            if (keys.ArrowRight) player.position.x += moveSpeed;
+            
+            // Keep player within bounds
+            player.position.x = Math.max(-45, Math.min(45, player.position.x));
+            player.position.z = Math.max(-45, Math.min(45, player.position.z));
+            
+            // Camera follows player
+            camera.position.x = player.position.x;
+            camera.position.z = player.position.z + 10;
+            camera.lookAt(player.position.x, player.position.y, player.position.z);
+        }
+        
+        function checkCollisions() {
+            // Check star collisions
+            for (let i = stars.length - 1; i >= 0; i--) {
+                const star = stars[i];
+                
+                // If magnet is active, stars come to player within a certain radius
+                if (magnetActive) {
+                    const distance = player.position.distanceTo(star.position);
+                    if (distance < 10) {
+                        const direction = new THREE.Vector3().subVectors(player.position, star.position).normalize();
+                        star.position.add(direction.multiplyScalar(0.3));
+                    }
+                }
+                
+                if (player.position.distanceTo(star.position) < 0.7) {
+                    scene.remove(star);
+                    stars.splice(i, 1);
+                    incrementScore();
+                    
+                    // 20% chance to spawn a power-up when collecting a star
+                    if (Math.random() < 0.2) {
+                        spawnPowerUp(star.position.x, star.position.z);
+                    }
+                    
+                    // Add new stars when low
+                    if (stars.length < 5) {
+                        createStars(5);
+                    }
+                }
+            }
+            
+            // Check obstacle collisions
+            if (!invincibleActive) {
+                for (const obstacle of obstacles) {
+                    const distance = player.position.distanceTo(obstacle.position);
+                    if (distance < 0.8 + (obstacle.geometry.parameters.radiusTop + obstacle.geometry.parameters.radiusBottom) / 2) {
+                        gameOver();
+                        return;
+                    }
+                }
+            }
+        }
+        
+        function incrementScore() {
+            score += level; // Higher levels give more points per star
+            document.getElementById('score').textContent = score;
+            
+            // Level up every 10 stars
+            if (score > 0 && score % 10 === 0) {
+                levelUp();
+            }
+        }
+        
+        function levelUp() {
+            level++;
+            document.getElementById('level').textContent = level;
+            
+            // Add more obstacles for higher levels
+            createObstacles(2);
+            
+            // Flash level number
+            const levelElement = document.getElementById('level-display');
+            levelElement.style.animation = 'none';
+            void levelElement.offsetWidth; // Trigger reflow
+            levelElement.style.animation = 'pulse 1s 2';
+        }
+        
+        function spawnPowerUp(x, z) {
+            const powerUpTypes = ['speed', 'invincible', 'magnet'];
+            const type = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
+            
+            const geometry = new THREE.SphereGeometry(0.3, 16, 16);
+            let color, emissive;
+            
+            switch (type) {
+                case 'speed':
+                    color = 0x00FF00;
+                    emissive = 0x008000;
+                    break;
+                case 'invincible':
+                    color = 0xFF0000;
+                    emissive = 0x800000;
+                    break;
+                case 'magnet':
+                    color = 0x00FFFF;
+                    emissive = 0x008080;
+                    break;
+            }
+            
+            const material = new THREE.MeshPhongMaterial({ 
+                color: color,
+                emissive: emissive,
+                emissiveIntensity: 0.3
+            });
+            
+            const powerUp = new THREE.Mesh(geometry, material);
+            powerUp.position.set(x, 0.3, z);
+            powerUp.userData.type = type;
+            powerUp.castShadow = true;
+            
+            // Add floating animation
+            powerUp.userData.floatSpeed = 0.01 + Math.random() * 0.02;
+            powerUp.userData.floatHeight = 0.1 + Math.random() * 0.2;
+            powerUp.userData.originalY = powerUp.position.y;
+            
+            scene.add(powerUp);
+            
+            // Power-up disappears after 10 seconds
+            setTimeout(() => {
+                if (scene.children.includes(powerUp)) {
+                    scene.remove(powerUp);
+                }
+            }, 10000);
+            
+            // Check collision with power-up
+            const powerUpCheck = setInterval(() => {
+                if (!gameActive || gamePaused) return;
+                
+                if (player.position.distanceTo(powerUp.position) < 0.8) {
+                    clearInterval(powerUpCheck);
+                    scene.remove(powerUp);
+                    
+                    // Activate power-up
+                    activatePowerUp(type);
+                }
+            }, 100);
+        }
+        
+        function activatePowerUp(type) {
+            const duration = 10 * 1000; // 10 seconds
+            
+            switch (type) {
+                case 'speed':
+                    speedActive = true;
+                    speedEndTime = Date.now() + duration;
+                    player.material.color.setHex(0x00FF00);
+                    break;
+                case 'invincible':
+                    invincibleActive = true;
+                    invincibleEndTime = Date.now() + duration;
+                    player.material.color.setHex(0xFF0000);
+                    break;
+                case 'magnet':
+                    magnetActive = true;
+                    magnetEndTime = Date.now() + duration;
+                    player.material.color.setHex(0x00FFFF);
+                    break;
+            }
+            
+            // Reset player color when power-up expires
+            setTimeout(() => {
+                if ((type === 'speed' && Date.now() >= speedEndTime) ||
+                    (type === 'invincible' && Date.now() >= invincibleEndTime) ||
+                    (type === 'magnet' && Date.now() >= magnetEndTime)) {
+                    
+                    deactivatePowerUp(type);
+                }
+            }, duration);
+        }
+        
+        function deactivatePowerUp(type) {
+            switch (type) {
+                case 'speed':
+                    speedActive = false;
+                    break;
+                case 'invincible':
+                    invincibleActive = false;
+                    break;
+                case 'magnet':
+                    magnetActive = false;
+                    break;
+            }
+            
+            // Only reset color if no other power-ups are active
+            if (!speedActive && !invincibleActive && !magnetActive) {
+                player.material.color.setHex(0x4169E1);
+            }
+        }
+        
+        function updatePowerUpTimers() {
+            const now = Date.now();
+            
+            // Update speed timer display
+            if (speedActive) {
+                const remaining = Math.max(0, Math.ceil((speedEndTime - now) / 1000));
+                document.getElementById('speed-timer').textContent = `${remaining}s`;
+                document.querySelector('.power-up.speed').style.opacity = '1';
+            } else {
+                document.getElementById('speed-timer').textContent = '0s';
+                document.querySelector('.power-up.speed').style.opacity = '0.5';
+            }
+            
+            // Update invincible timer display
+            if (invincibleActive) {
+                const remaining = Math.max(0, Math.ceil((invincibleEndTime - now) / 1000));
+                document.getElementById('invincible-timer').textContent = `${remaining}s`;
+                document.querySelector('.power-up.invincible').style.opacity = '1';
+            } else {
+                document.getElementById('invincible-timer').textContent = '0s';
+                document.querySelector('.power-up.invincible').style.opacity = '0.5';
+            }
+            
+            // Update magnet timer display
+            if (magnetActive) {
+                const remaining = Math.max(0, Math.ceil((magnetEndTime - now) / 1000));
+                document.getElementById('magnet-timer').textContent = `${remaining}s`;
+                document.querySelector('.power-up.magnet').style.opacity = '1';
+            } else {
+                document.getElementById('magnet-timer').textContent = '0s';
+                document.querySelector('.power-up.magnet').style.opacity = '0.5';
+            }
+        }
+        
+        function startGame() {
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('pause-button').style.display = 'block';
+            gameActive = true;
+            gamePaused = false;
+            
+            // Start timer
+            const timer = setInterval(() => {
+                if (!gameActive || gamePaused) return;
+                
+                timeLeft--;
+                document.getElementById('time').textContent = timeLeft;
+                
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    gameOver();
+                }
+            }, 1000);
+        }
+        
+        function showInstructions() {
+            alert("How to Play:\n\n- Use arrow keys to move your character\n- Collect the golden stars to score points\n- Avoid the red obstacles or you'll lose\n- Higher levels give more points but have more obstacles\n- Collect power-ups for special abilities:\n  - Green: Speed boost\n  - Red: Invincibility\n  - Blue: Star magnet");
+        }
+        
+        function togglePause() {
+            gamePaused = !gamePaused;
+            document.getElementById('pause-button').innerHTML = gamePaused ? 
+                '<i class="fas fa-play"></i> Resume' : 
+                '<i class="fas fa-pause"></i> Pause';
+        }
+        
+        function gameOver() {
+            gameActive = false;
+            document.getElementById('game-over-screen').style.display = 'flex';
+            document.getElementById('final-score-value').textContent = score;
+            document.getElementById('pause-button').style.display = 'none';
+        }
+        
+        function restartGame() {
+            // Reset game state
+            score = 0;
+            timeLeft = 60;
+            level = 1;
+            
+            document.getElementById('score').textContent = '0';
+            document.getElementById('time').textContent = '60';
+            document.getElementById('level').textContent = '1';
+            document.getElementById('game-over-screen').style.display = 'none';
+            
+            // Remove all stars and obstacles
+            for (const star of stars) {
+                scene.remove(star);
+            }
+            stars = [];
+            
+            for (const obstacle of obstacles) {
+                scene.remove(obstacle);
+            }
+            obstacles = [];
+            
+            // Reset player position and color
+            player.position.set(0, 0.5, 0);
+            player.material.color.setHex(0x4169E1);
+            
+            // Reset power-ups
+            speedActive = false;
+            invincibleActive = false;
+            magnetActive = false;
+            
+            // Create new stars and obstacles
+            createStars(10);
+            createObstacles(5);
+            
+            // Start new game
+            startGame();
+        }
+        
+        function animateObjects() {
+            // Rotate stars
+            for (const star of stars) {
+                star.rotation.y += star.userData.rotationSpeed;
+                // Add small floating effect
+                star.position.y = 0.2 + Math.sin(Date.now() * 0.002) * 0.1;
+            }
+            
+            // Rotate obstacles slightly
+            for (const obstacle of obstacles) {
+                obstacle.rotation.y += 0.01;
+            }
+            
+            // Animate power-ups floating
+            const powerUps = scene.children.filter(obj => obj.userData && obj.userData.type);
+            for (const powerUp of powerUps) {
+                powerUp.position.y = powerUp.userData.originalY + Math.sin(Date.now() * powerUp.userData.floatSpeed) * powerUp.userData.floatHeight;
+                powerUp.rotation.y += 0.02;
+            }
+            
+            // Pulsate player effect when invincible
+            if (invincibleActive) {
+                const scale = 1 + Math.sin(Date.now() * 0.005) * 0.1;
+                player.scale.set(scale, scale, scale);
+            } else {
+                player.scale.set(1, 1, 1);
+            }
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (gameActive && !gamePaused) {
+                updatePlayerPosition();
+                checkCollisions();
+                animateObjects();
+                updatePowerUpTimers();
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        // Start the game
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive UI Showcase</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <style>
+        /* --- Global Styles & Resets --- */
+        :root {
+            --primary-color: #4a90e2; /* A nice blue */
+            --secondary-color: #f5a623; /* A warm orange */
+            --background-color: #f4f7f6; /* Light grey-ish background */
+            --card-background: #ffffff; /* White card */
+            --text-color: #333;
+            --subtle-text-color: #777;
+            --success-color: #50e3c2; /* A teal green */
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --border-radius: 12px;
+            --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            --transition-speed: 0.3s;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--background-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            line-height: 1.6;
+            /* Subtle gradient background */
+            background-image: linear-gradient(135deg, #eef2f3 0%, #f4f7f6 100%);
+        }
+
+        /* --- Main Card Component --- */
+        .interactive-card {
+            background-color: var(--card-background);
+            border-radius: var(--border-radius);
+            box-shadow: 0 10px 25px var(--shadow-color);
+            padding: 30px 40px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+            overflow: hidden;
+            position: relative;
+            transition: transform var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+        }
+
+        .interactive-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        /* --- Card Header --- */
+        .card-header {
+            margin-bottom: 25px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 15px;
+        }
+
+        .card-header h2 {
+            color: var(--primary-color);
+            margin-bottom: 5px;
+            font-size: 1.8em;
+            font-weight: 600;
+        }
+
+        .card-header p {
+            color: var(--subtle-text-color);
+            font-size: 0.95em;
+        }
+
+        /* --- Clock Display --- */
+        #clock {
+            font-size: 1.1em;
+            font-weight: 500;
+            color: var(--secondary-color);
+            background-color: #fff8e1; /* Light yellow background for clock */
+            padding: 8px 15px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-top: 15px;
+            border: 1px solid #ffe0b2; /* Light orange border */
+        }
+
+        /* --- Interactive Element: "Digital Plant" --- */
+        .plant-area {
+            margin: 30px 0;
+            padding: 20px;
+            background-color: #e8f5e9; /* Light green background */
+            border-radius: var(--border-radius);
+            border: 1px solid #c8e6c9; /* Slightly darker green border */
+        }
+
+        #plant-icon {
+            font-size: 5em; /* Large icon */
+            color: #66bb6a; /* Initial green color */
+            margin-bottom: 15px;
+            transition: transform var(--transition-speed) ease, color var(--transition-speed) ease;
+            display: inline-block; /* Needed for transform */
+            cursor: default; /* Indicates it's not directly clickable, but part of the interaction */
+        }
+
+        /* Plant growth animation state */
+        #plant-icon.growing {
+            transform: scale(1.1) rotate(5deg);
+            color: #388e3c; /* Darker, healthier green */
+        }
+
+        #plant-status {
+            font-style: italic;
+            color: var(--subtle-text-color);
+            min-height: 20px; /* Prevent layout shift */
+            transition: color var(--transition-speed) ease;
+        }
+
+        #plant-status.happy {
+            color: var(--success-color);
+            font-weight: 500;
+        }
+
+        /* --- Control Buttons --- */
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px; /* Space between buttons */
+            margin-top: 20px;
+        }
+
+        .control-button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 25px; /* Pill shape */
+            padding: 12px 25px;
+            font-size: 1em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color var(--transition-speed) ease, transform var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+            display: inline-flex; /* Align icon and text */
+            align-items: center;
+            gap: 8px; /* Space between icon and text */
+            box-shadow: 0 4px 10px rgba(74, 144, 226, 0.3); /* Shadow matching primary color */
+        }
+
+        .control-button:hover {
+            background-color: #3a7ac0; /* Darker blue on hover */
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(74, 144, 226, 0.4);
+        }
+
+        .control-button:active {
+            transform: translateY(1px);
+            box-shadow: 0 2px 5px rgba(74, 144, 226, 0.3);
+        }
+
+        .control-button i {
+           font-size: 1.1em; /* Slightly larger icon */
+        }
+
+        /* Specific button styling */
+        #water-button {
+            background-color: var(--primary-color);
+        }
+        #water-button:hover {
+            background-color: #3a7ac0;
+        }
+
+        #toggle-light-button {
+            background-color: var(--secondary-color);
+            box-shadow: 0 4px 10px rgba(245, 166, 35, 0.3);
+        }
+        #toggle-light-button:hover {
+            background-color: #d48f1b; /* Darker orange */
+            box-shadow: 0 6px 15px rgba(245, 166, 35, 0.4);
+        }
+        #toggle-light-button:active {
+            box-shadow: 0 2px 5px rgba(245, 166, 35, 0.3);
+        }
+
+        /* Style for the "light on" state */
+        .interactive-card.light-on {
+            background-color: #fffde7; /* Very light yellow background when light is on */
+        }
+        .interactive-card.light-on .plant-area {
+            background-color: #f1f8e9; /* Slightly different green background */
+        }
+
+
+        /* --- Footer --- */
+        .card-footer {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+            font-size: 0.85em;
+            color: var(--subtle-text-color);
+        }
+
+        /* --- Responsive Design --- */
+        @media (max-width: 600px) {
+            .interactive-card {
+                padding: 25px 20px;
+            }
+
+            .card-header h2 {
+                font-size: 1.5em;
+            }
+
+            #plant-icon {
+                font-size: 4em;
+            }
+
+            .controls {
+                flex-direction: column; /* Stack buttons vertically on small screens */
+                gap: 10px;
+            }
+
+            .control-button {
+                width: 100%; /* Make buttons full width */
+                justify-content: center; /* Center button content */
+                padding: 15px 20px;
+            }
+        }
+
+        /* --- Subtle Entry Animation --- */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .interactive-card {
+            animation: fadeIn 0.6s ease-out;
+        }
+
+    </style>
+</head>
+<body>
+
+    <main class="interactive-card" id="mainCard">
+        <header class="card-header">
+            <h2>Digital Oasis</h2>
+            <p>A small interactive corner powered by HTML, CSS & JavaScript.</p>
+            <div id="clock">Loading time...</div>
+        </header>
+
+        <section class="plant-area">
+            <div id="plant-icon" class="fas fa-seedling"></div>
+            <p id="plant-status">The seedling is waiting.</p>
+        </section>
+
+        <section class="controls">
+            <button id="water-button" class="control-button">
+                <i class="fas fa-tint"></i> Water Plant
+            </button>
+            <button id="toggle-light-button" class="control-button">
+                <i class="fas fa-sun"></i> Toggle Light
+            </button>
+        </section>
+
+        <footer class="card-footer">
+            Crafted with basic web technologies. Current time is dynamic.
+        </footer>
+    </main>
+
+    <script>
+        // --- DOM Element References ---
+        const clockElement = document.getElementById('clock');
+        const plantIcon = document.getElementById('plant-icon');
+        const plantStatus = document.getElementById('plant-status');
+        const waterButton = document.getElementById('water-button');
+        const toggleLightButton = document.getElementById('toggle-light-button');
+        const mainCard = document.getElementById('mainCard');
+        const lightIcon = toggleLightButton.querySelector('i'); // Get the icon within the button
+
+        // --- State ---
+        let isLightOn = false;
+        let plantWatered = false;
+
+        // --- Clock Functionality ---
+        function updateClock() {
+            const now = new Date();
+            // Using locale specific time format from user's browser settings
+            const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            // Using locale specific date format
+            const dateString = now.toLocaleDateString([], { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+            clockElement.textContent = `${dateString}, ${timeString}`;
+        }
+
+        // Update the clock immediately and then every second
+        updateClock();
+        setInterval(updateClock, 1000);
+
+        // --- Plant Interaction ---
+        function waterPlant() {
+            plantIcon.classList.add('growing');
+            plantStatus.textContent = "Ah, refreshing! The plant looks happy.";
+            plantStatus.classList.add('happy');
+            plantWatered = true;
+
+            // Revert after a short period
+            setTimeout(() => {
+                plantIcon.classList.remove('growing');
+                // Status remains happy until light changes or page reloads
+            }, 1500); // Animation duration
+        }
+
+        // --- Light Toggle ---
+        function toggleLight() {
+            isLightOn = !isLightOn; // Toggle the state
+            mainCard.classList.toggle('light-on', isLightOn); // Add/remove class based on state
+
+            if (isLightOn) {
+                lightIcon.classList.remove('fa-sun'); // Change icon
+                lightIcon.classList.add('fa-moon');
+                toggleLightButton.childNodes[2].nodeValue = ' Turn Off Light'; // Update button text (better ways exist, but keeping it simple)
+                if(plantWatered){
+                    plantStatus.textContent = "Enjoying the warmth and water!";
+                    plantStatus.classList.add('happy');
+                } else {
+                     plantStatus.textContent = "It's bright, but feels a bit thirsty.";
+                     plantStatus.classList.remove('happy');
+                }
+            } else {
+                lightIcon.classList.remove('fa-moon');
+                lightIcon.classList.add('fa-sun');
+                toggleLightButton.childNodes[2].nodeValue = ' Turn On Light';
+                if(plantWatered){
+                    plantStatus.textContent = "Rested and hydrated.";
+                     plantStatus.classList.add('happy');
+                } else {
+                     plantStatus.textContent = "Resting in the shade. Still thirsty.";
+                     plantStatus.classList.remove('happy');
+                }
+            }
+        }
+
+
+        // --- Event Listeners ---
+        waterButton.addEventListener('click', waterPlant);
+        toggleLightButton.addEventListener('click', toggleLight);
+
+        // --- Initial Setup ---
+         // Set initial button text for light toggle
+        toggleLightButton.childNodes[2].nodeValue = ' Turn On Light';
+        // Set initial plant status based on water state (which is initially false)
+        plantStatus.textContent = "The seedling is waiting.";
+
+
+    </script>
+
+</body>
+</html>

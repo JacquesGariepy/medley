@@ -1,0 +1,2796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Dashboard</title>
+    <!-- Import Lucide Icons -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.min.js"></script>
+    <!-- Import Chart.js for data visualization -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        /* ========== CSS VARIABLES ========== */
+        :root {
+            /* Light theme variables */
+            --primary-color: #4f46e5;
+            --primary-hover: #4338ca;
+            --secondary-color: #10b981;
+            --secondary-hover: #059669;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --info-color: #3b82f6;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --bg-main: #f9fafb;
+            --bg-card: #ffffff;
+            --bg-sidebar: #f1f5f9;
+            --border-color: #e2e8f0;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            
+            /* Animation speeds */
+            --transition-fast: 0.2s;
+            --transition-normal: 0.3s;
+            --transition-slow: 0.5s;
+        }
+
+        /* Dark theme variables */
+        [data-theme="dark"] {
+            --primary-color: #6366f1;
+            --primary-hover: #8183ff;
+            --secondary-color: #34d399;
+            --secondary-hover: #6ee7b7;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --bg-main: #0f172a;
+            --bg-card: #1e293b;
+            --bg-sidebar: #1e293b;
+            --border-color: #334155;
+        }
+
+        /* ========== RESET & BASE STYLES ========== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            font-size: 16px;
+            line-height: 1.5;
+            transition: background-color var(--transition-normal), color var(--transition-normal);
+            overflow-x: hidden;
+        }
+
+        a {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: inherit;
+        }
+
+        /* ========== LAYOUT STYLES ========== */
+        .app-container {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            grid-template-rows: 70px 1fr;
+            grid-template-areas:
+                "sidebar header"
+                "sidebar main";
+            min-height: 100vh;
+            position: relative;
+        }
+
+        @media screen and (max-width: 1024px) {
+            .app-container {
+                grid-template-columns: 1fr;
+                grid-template-areas:
+                    "header"
+                    "main";
+            }
+
+            .sidebar {
+                position: fixed;
+                left: -280px;
+                height: 100vh;
+                z-index: 1000;
+                transition: transform var(--transition-normal);
+            }
+
+            .sidebar.active {
+                transform: translateX(280px);
+            }
+
+            .overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                background-color: rgba(0, 0, 0, 0.5);
+                z-index: 999;
+                opacity: 0;
+                transition: opacity var(--transition-normal);
+            }
+
+            .overlay.active {
+                display: block;
+                opacity: 1;
+            }
+        }
+
+        /* ========== HEADER STYLES ========== */
+        .header {
+            grid-area: header;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            background-color: var(--bg-card);
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: var(--shadow-sm);
+            z-index: 10;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .mobile-menu-button {
+            display: none;
+            color: var(--text-primary);
+            padding: 8px;
+            border-radius: 8px;
+            transition: background-color var(--transition-fast);
+        }
+
+        @media screen and (max-width: 1024px) {
+            .mobile-menu-button {
+                display: flex;
+            }
+        }
+
+        .mobile-menu-button:hover {
+            background-color: var(--border-color);
+        }
+
+        .search-bar {
+            display: flex;
+            align-items: center;
+            background-color: var(--bg-main);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px 16px;
+            width: 300px;
+            transition: box-shadow var(--transition-fast), width var(--transition-normal);
+        }
+
+        .search-bar.active {
+            width: 400px;
+        }
+
+        @media screen and (max-width: 768px) {
+            .search-bar {
+                display: none;
+            }
+        }
+
+        .search-bar:focus-within {
+            box-shadow: 0 0 0 2px var(--primary-color);
+        }
+
+        .search-bar input {
+            background: none;
+            border: none;
+            outline: none;
+            width: 100%;
+            margin-left: 8px;
+            color: var(--text-primary);
+        }
+
+        .search-bar input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        /* Search Results Dropdown */
+        .search-results {
+            position: absolute;
+            top: 60px;
+            left: 80px;
+            width: 400px;
+            background-color: var(--bg-card);
+            border-radius: 8px;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border-color);
+            z-index: 100;
+            display: none;
+            overflow: hidden;
+        }
+
+        .search-results.active {
+            display: block;
+            animation: fadeIn var(--transition-fast) forwards;
+        }
+
+        .search-results-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .search-results-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .search-result-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            transition: background-color var(--transition-fast);
+            cursor: pointer;
+        }
+
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+
+        .search-result-item:hover {
+            background-color: var(--bg-main);
+        }
+
+        .search-result-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background-color: rgba(79, 70, 229, 0.1);
+            color: var(--primary-color);
+        }
+
+        .search-result-content {
+            flex: 1;
+        }
+
+        .search-result-title {
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+
+        .search-result-subtitle {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .header-icon-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            color: var(--text-primary);
+            transition: background-color var(--transition-fast);
+            position: relative;
+        }
+
+        .header-icon-button:hover {
+            background-color: var(--border-color);
+        }
+
+        .notification-button {
+            position: relative;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 10px;
+            height: 10px;
+            background-color: var(--danger-color);
+            border-radius: 50%;
+        }
+
+        /* Notifications Dropdown */
+        .notifications-dropdown {
+            position: absolute;
+            top: 60px;
+            right: 90px;
+            width: 320px;
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border-color);
+            z-index: 100;
+            display: none;
+            overflow: hidden;
+        }
+
+        .notifications-dropdown.active {
+            display: block;
+            animation: fadeIn var(--transition-fast) forwards;
+        }
+
+        .notifications-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .notifications-title {
+            font-weight: 600;
+        }
+
+        .mark-all-read {
+            font-size: 0.8rem;
+            color: var(--primary-color);
+            cursor: pointer;
+            transition: color var(--transition-fast);
+        }
+
+        .mark-all-read:hover {
+            color: var(--primary-hover);
+        }
+
+        .notifications-list {
+            max-height: 380px;
+            overflow-y: auto;
+        }
+
+        .notification-item {
+            display: flex;
+            gap: 12px;
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+            transition: background-color var(--transition-fast);
+            cursor: pointer;
+        }
+
+        .notification-item:last-child {
+            border-bottom: none;
+        }
+
+        .notification-item:hover {
+            background-color: var(--bg-main);
+        }
+
+        .notification-item.unread {
+            background-color: rgba(59, 130, 246, 0.05);
+        }
+
+        .notification-item.unread:hover {
+            background-color: rgba(59, 130, 246, 0.1);
+        }
+
+        .notification-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .notification-icon.message {
+            background-color: rgba(59, 130, 246, 0.1);
+            color: var(--info-color);
+        }
+
+        .notification-icon.task {
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--secondary-color);
+        }
+
+        .notification-icon.alert {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: var(--danger-color);
+        }
+
+        .notification-content {
+            flex: 1;
+        }
+
+        .notification-message {
+            margin-bottom: 4px;
+            font-size: 0.9rem;
+        }
+
+        .notification-message strong {
+            font-weight: 600;
+        }
+
+        .notification-time {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .notifications-footer {
+            padding: 12px;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+        }
+
+        .view-all-link {
+            color: var(--primary-color);
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color var(--transition-fast);
+        }
+
+        .view-all-link:hover {
+            color: var(--primary-hover);
+        }
+
+        /* Messages Dropdown */
+        .messages-dropdown {
+            position: absolute;
+            top: 60px;
+            right: 50px;
+            width: 320px;
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border-color);
+            z-index: 100;
+            display: none;
+            overflow: hidden;
+        }
+
+        .messages-dropdown.active {
+            display: block;
+            animation: fadeIn var(--transition-fast) forwards;
+        }
+
+        .messages-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .messages-title {
+            font-weight: 600;
+        }
+
+        .messages-list {
+            max-height: 380px;
+            overflow-y: auto;
+        }
+
+        .message-item {
+            display: flex;
+            gap: 12px;
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+            transition: background-color var(--transition-fast);
+            cursor: pointer;
+        }
+
+        .message-item:last-child {
+            border-bottom: none;
+        }
+
+        .message-item:hover {
+            background-color: var(--bg-main);
+        }
+
+        .message-item.unread {
+            background-color: rgba(59, 130, 246, 0.05);
+        }
+
+        .message-item.unread:hover {
+            background-color: rgba(59, 130, 246, 0.1);
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            overflow: hidden;
+            background-color: #c7d2fe;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-color);
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .message-content {
+            flex: 1;
+        }
+
+        .message-sender {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .message-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .message-time {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .message-preview {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .messages-footer {
+            padding: 12px;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+        }
+
+        .theme-toggle {
+            cursor: pointer;
+        }
+
+        /* User Menu Dropdown */
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 4px 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color var(--transition-fast);
+            position: relative;
+        }
+
+        .user-menu:hover {
+            background-color: var(--border-color);
+        }
+
+        .user-dropdown {
+            position: absolute;
+            top: 60px;
+            right: 16px;
+            width: 240px;
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border-color);
+            z-index: 100;
+            overflow: hidden;
+            display: none;
+        }
+
+        .user-dropdown.active {
+            display: block;
+            animation: fadeIn var(--transition-fast) forwards;
+        }
+
+        .user-dropdown-header {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .user-dropdown-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            overflow: hidden;
+            background-color: #c7d2fe;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-color);
+            font-weight: 600;
+            font-size: 1.5rem;
+            margin-bottom: 12px;
+        }
+
+        .user-dropdown-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .user-dropdown-email {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .user-dropdown-links {
+            list-style: none;
+        }
+
+        .user-dropdown-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            transition: background-color var(--transition-fast);
+        }
+
+        .user-dropdown-link:hover {
+            background-color: var(--bg-main);
+        }
+
+        .user-dropdown-link.danger {
+            color: var(--danger-color);
+        }
+
+        .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            overflow: hidden;
+            background-color: #c7d2fe;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .user-info {
+            display: none;
+        }
+
+        @media screen and (min-width: 768px) {
+            .user-info {
+                display: block;
+            }
+        }
+
+        .user-name {
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .user-role {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        /* ========== SIDEBAR STYLES ========== */
+        .sidebar {
+            grid-area: sidebar;
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            padding: 24px 0;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 40px;
+            padding: 0 24px;
+        }
+
+        .logo-icon {
+            color: var(--primary-color);
+        }
+
+        .logo-text {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-section {
+            margin-bottom: 24px;
+        }
+
+        .nav-section-title {
+            padding: 12px 24px;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .nav-links {
+            list-style: none;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 24px;
+            color: var(--text-secondary);
+            border-left: 3px solid transparent;
+            transition: color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
+        }
+
+        .nav-link:hover {
+            color: var(--text-primary);
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+
+        [data-theme="dark"] .nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .nav-link.active {
+            color: var(--primary-color);
+            background-color: rgba(79, 70, 229, 0.1);
+            border-left-color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        [data-theme="dark"] .nav-link.active {
+            background-color: rgba(99, 102, 241, 0.1);
+        }
+
+        .nav-link-badge {
+            margin-left: auto;
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 12px;
+            background-color: var(--danger-color);
+            color: white;
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding: 24px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .help-card {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .help-card-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .help-card-text {
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+            opacity: 0.9;
+        }
+
+        .help-card-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: background-color var(--transition-fast);
+        }
+
+        .help-card-button:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* ========== MAIN CONTENT STYLES ========== */
+        .main-content {
+            grid-area: main;
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        /* Welcome Section */
+        .welcome-section {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-md);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .welcome-content {
+            flex: 1;
+        }
+
+        .welcome-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .welcome-subtitle {
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+            max-width: 500px;
+        }
+
+        .welcome-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn-outline {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+            background-color: transparent;
+            transition: background-color var(--transition-fast), color var(--transition-fast);
+        }
+
+        .btn-outline:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .welcome-image {
+            width: 200px;
+            height: 150px;
+            object-fit: contain;
+            display: none;
+        }
+
+        @media screen and (min-width: 768px) {
+            .welcome-image {
+                display: block;
+            }
+        }
+
+        .page-title {
+            margin-bottom: 24px;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .dashboard-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        @media screen and (max-width: 1280px) {
+            .dashboard-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media screen and (max-width: 640px) {
+            .dashboard-stats {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .stat-card {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: var(--shadow-md);
+            display: flex;
+            flex-direction: column;
+            transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 6px;
+            height: 60px;
+            background: linear-gradient(to bottom, var(--primary-color), transparent);
+            border-radius: 0 12px 0 0;
+        }
+
+        .stat-card:nth-child(2)::after {
+            background: linear-gradient(to bottom, var(--secondary-color), transparent);
+        }
+
+        .stat-card:nth-child(3)::after {
+            background: linear-gradient(to bottom, var(--warning-color), transparent);
+        }
+
+        .stat-card:nth-child(4)::after {
+            background: linear-gradient(to bottom, var(--danger-color), transparent);
+        }
+
+        .stat-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .stat-card-title {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .stat-card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .icon-users {
+            background-color: var(--primary-color);
+        }
+
+        .icon-revenue {
+            background-color: var(--secondary-color);
+        }
+
+        .icon-orders {
+            background-color: var(--warning-color);
+        }
+
+        .icon-conversion {
+            background-color: var(--danger-color);
+        }
+
+        .stat-card-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .stat-card-comparison {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+        }
+
+        .comparison-positive {
+            color: var(--secondary-color);
+        }
+
+        .comparison-negative {
+            color: var(--danger-color);
+        }
+
+        .chart-section {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        @media screen and (max-width: 1024px) {
+            .chart-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-card {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .chart-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .chart-card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .chart-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .chart-filter {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: border-color var(--transition-fast);
+        }
+
+        .chart-filter:hover {
+            border-color: var(--primary-color);
+        }
+
+        .chart-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+        }
+
+        .chart-toggle:hover {
+            color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 300px;
+            position: relative;
+        }
+
+        .chart-legend {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 16px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .legend-color.revenue {
+            background-color: var(--primary-color);
+        }
+
+        .legend-color.expenses {
+            background-color: var(--secondary-color);
+        }
+
+        .recent-activity {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .activity-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .activity-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .activity-filter {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: color var(--transition-fast);
+        }
+
+        .activity-filter:hover {
+            color: var(--primary-color);
+        }
+
+        .activity-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .activity-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .activity-item:last-child {
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .activity-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(79, 70, 229, 0.1);
+            color: var(--primary-color);
+        }
+
+        .activity-content {
+            flex: 1;
+        }
+
+        .activity-message {
+            margin-bottom: 4px;
+        }
+
+        .activity-message strong {
+            font-weight: 600;
+        }
+
+        .activity-time {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .tasks-section {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+        }
+
+        @media screen and (max-width: 1024px) {
+            .tasks-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .tasks-card {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .tasks-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .tasks-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .add-task-button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background-color: var(--primary-color);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: background-color var(--transition-fast);
+        }
+
+        .add-task-button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .tasks-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+            transition: transform var(--transition-fast);
+        }
+
+        .task-item:hover {
+            transform: translateX(4px);
+        }
+
+        .task-item:last-child {
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .task-checkbox {
+            position: relative;
+            width: 20px;
+            height: 20px;
+            border-radius: 6px;
+            border: 2px solid var(--text-secondary);
+            cursor: pointer;
+            transition: background-color var(--transition-fast), border-color var(--transition-fast);
+        }
+
+        .task-checkbox.completed {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .task-checkbox.completed::after {
+            content: '';
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(45deg);
+            width: 5px;
+            height: 10px;
+            border-right: 2px solid white;
+            border-bottom: 2px solid white;
+        }
+
+        .task-content {
+            flex: 1;
+        }
+
+        .task-name {
+            margin-bottom: 4px;
+            transition: color var(--transition-fast), text-decoration var(--transition-fast);
+        }
+
+        .task-checkbox.completed + .task-content .task-name {
+            color: var(--text-secondary);
+            text-decoration: line-through;
+        }
+
+        .task-meta {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .task-date {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .task-priority {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .priority-high {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: var(--danger-color);
+        }
+
+        .priority-medium {
+            background-color: rgba(245, 158, 11, 0.1);
+            color: var(--warning-color);
+        }
+
+        .priority-low {
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--secondary-color);
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 8px;
+            opacity: 0;
+            transition: opacity var(--transition-fast);
+        }
+
+        .task-item:hover .task-actions {
+            opacity: 1;
+        }
+
+        .task-action-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            color: var(--text-secondary);
+            transition: background-color var(--transition-fast), color var(--transition-fast);
+        }
+
+        .task-action-button:hover {
+            background-color: var(--bg-main);
+            color: var(--primary-color);
+        }
+
+        .task-action-button.delete:hover {
+            color: var(--danger-color);
+        }
+
+        .team-members {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .members-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .member-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px;
+            border-radius: 12px;
+            transition: background-color var(--transition-fast);
+        }
+
+        .member-item:hover {
+            background-color: var(--bg-main);
+        }
+
+        .member-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            overflow: hidden;
+            background-color: #c7d2fe;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-color);
+            font-weight: 600;
+            font-size: 1.2rem;
+        }
+
+        .member-info {
+            flex: 1;
+        }
+
+        .member-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .member-role {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .member-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+        }
+
+        .status-online {
+            color: var(--secondary-color);
+        }
+
+        .status-offline {
+            color: var(--text-secondary);
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .status-online .status-indicator {
+            background-color: var(--secondary-color);
+        }
+
+        .status-offline .status-indicator {
+            background-color: var(--text-secondary);
+        }
+
+        .member-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .member-action-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            transition: background-color var(--transition-fast), color var(--transition-fast);
+        }
+
+        .member-action-button:hover {
+            background-color: var(--bg-main);
+            color: var(--primary-color);
+        }
+
+        /* ========== MODAL STYLES ========== */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1001;
+            opacity: 0;
+            transition: opacity var(--transition-normal);
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 1;
+        }
+
+        .modal-content {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: var(--shadow-lg);
+            transform: translateY(20px);
+            transition: transform var(--transition-normal);
+            overflow: hidden;
+        }
+
+        .modal.active .modal-content {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 24px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            color: var(--text-secondary);
+            transition: color var(--transition-fast);
+        }
+
+        .modal-close:hover {
+            color: var(--danger-color);
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1rem;
+            color: var(--text-primary);
+            background-color: var(--bg-main);
+            transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1rem;
+            color: var(--text-primary);
+            background-color: var(--bg-main);
+            transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+            background-size: 16px;
+        }
+
+        .form-select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+        }
+
+        .modal-footer {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 16px;
+            padding: 24px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+            cursor: pointer;
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--bg-main);
+            border-color: var(--text-secondary);
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            border-color: var(--primary-hover);
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .toast {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            background-color: var(--bg-card);
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: var(--shadow-lg);
+            margin-top: 12px;
+            max-width: 300px;
+            transform: translateX(120%);
+            transition: transform var(--transition-normal);
+        }
+
+        .toast.active {
+            transform: translateX(0);
+        }
+
+        .toast-icon {
+            flex-shrink: 0;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .toast-icon.success {
+            background-color: var(--secondary-color);
+        }
+
+        .toast-icon.error {
+            background-color: var(--danger-color);
+        }
+
+        .toast-icon.warning {
+            background-color: var(--warning-color);
+        }
+
+        .toast-icon.info {
+            background-color: var(--info-color);
+        }
+
+        .toast-content {
+            flex: 1;
+        }
+
+        .toast-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .toast-message {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .toast-close {
+            flex-shrink: 0;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: color var(--transition-fast);
+        }
+
+        .toast-close:hover {
+            color: var(--danger-color);
+        }
+
+        .toast-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 3px;
+            background-color: rgba(0, 0, 0, 0.1);
+            border-radius: 0 0 8px 8px;
+        }
+
+        /* ========== ANIMATIONS ========== */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideInFromBottom {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideInFromRight {
+            from {
+                transform: translateX(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .welcome-section,
+        .stat-card, 
+        .chart-card, 
+        .tasks-card, 
+        .recent-activity, 
+        .team-members {
+            animation: slideInFromBottom var(--transition-slow) forwards;
+        }
+
+        .welcome-section {
+            animation-delay: 0.05s;
+        }
+
+        .stat-card:nth-child(1) {
+            animation-delay: 0.1s;
+        }
+
+        .stat-card:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .stat-card:nth-child(3) {
+            animation-delay: 0.3s;
+        }
+
+        .stat-card:nth-child(4) {
+            animation-delay: 0.4s;
+        }
+
+        .chart-section {
+            animation-delay: 0.5s;
+        }
+
+        .tasks-section {
+            animation-delay: 0.6s;
+        }
+    </style>
+</head>
+<body>
+    <div class="overlay" id="overlay"></div>
+
+    <!-- Toast Notifications Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Search Results Dropdown -->
+    <div class="search-results" id="searchResults">
+        <div class="search-results-header">Search Results</div>
+        <div class="search-results-list">
+            <div class="search-result-item">
+                <div class="search-result-icon">
+                    <i data-lucide="layout-dashboard"></i>
+                </div>
+                <div class="search-result-content">
+                    <div class="search-result-title">Dashboard Overview</div>
+                    <div class="search-result-subtitle">Main dashboard page</div>
+                </div>
+            </div>
+            <div class="search-result-item">
+                <div class="search-result-icon">
+                    <i data-lucide="user"></i>
+                </div>
+                <div class="search-result-content">
+                    <div class="search-result-title">Alex Kim</div>
+                    <div class="search-result-subtitle">Team member</div>
+                </div>
+            </div>
+            <div class="search-result-item">
+                <div class="search-result-icon">
+                    <i data-lucide="briefcase"></i>
+                </div>
+                <div class="search-result-content">
+                    <div class="search-result-title">Website Redesign Project</div>
+                    <div class="search-result-subtitle">Active project</div>
+                </div>
+            </div>
+            <div class="search-result-item">
+                <div class="search-result-icon">
+                    <i data-lucide="check-square"></i>
+                </div>
+                <div class="search-result-content">
+                    <div class="search-result-title">Prepare quarterly report</div>
+                    <div class="search-result-subtitle">Due Apr 05, 2025</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notifications Dropdown -->
+    <div class="notifications-dropdown" id="notificationsDropdown">
+        <div class="notifications-header">
+            <div class="notifications-title">Notifications</div>
+            <div class="mark-all-read" id="markAllRead">Mark all as read</div>
+        </div>
+        <div class="notifications-list">
+            <div class="notification-item unread">
+                <div class="notification-icon message">
+                    <i data-lucide="message-square"></i>
+                </div>
+                <div class="notification-content">
+                    <div class="notification-message">
+                        <strong>Sarah Johnson</strong> mentioned you in a comment
+                    </div>
+                    <div class="notification-time">10 minutes ago</div>
+                </div>
+            </div>
+            <div class="notification-item unread">
+                <div class="notification-icon task">
+                    <i data-lucide="check-square"></i>
+                </div>
+                <div class="notification-content">
+                    <div class="notification-message">
+                        <strong>Mike Clark</strong> completed a task assigned to you
+                    </div>
+                    <div class="notification-time">1 hour ago</div>
+                </div>
+            </div>
+            <div class="notification-item">
+                <div class="notification-icon alert">
+                    <i data-lucide="alert-circle"></i>
+                </div>
+                <div class="notification-content">
+                    <div class="notification-message">
+                        Your monthly report is ready to view
+                    </div>
+                    <div class="notification-time">3 hours ago</div>
+                </div>
+            </div>
+            <div class="notification-item">
+                <div class="notification-icon message">
+                    <i data-lucide="message-square"></i>
+                </div>
+                <div class="notification-content">
+                    <div class="notification-message">
+                        <strong>Maria Lopez</strong> sent you a message
+                    </div>
+                    <div class="notification-time">Yesterday</div>
+                </div>
+            </div>
+        </div>
+        <div class="notifications-footer">
+            <a href="#" class="view-all-link">View all notifications</a>
+        </div>
+    </div>
+
+    <!-- Messages Dropdown -->
+    <div class="messages-dropdown" id="messagesDropdown">
+        <div class="messages-header">
+            <div class="messages-title">Messages</div>
+        </div>
+        <div class="messages-list">
+            <div class="message-item unread">
+                <div class="message-avatar">ML</div>
+                <div class="message-content">
+                    <div class="message-sender">
+                        <div class="message-name">Maria Lopez</div>
+                        <div class="message-time">10m</div>
+                    </div>
+                    <div class="message-preview">Hi Alex, can we discuss the design updates for the homepage? I have some ideas...</div>
+                </div>
+            </div>
+            <div class="message-item unread">
+                <div class="message-avatar">JW</div>
+                <div class="message-content">
+                    <div class="message-sender">
+                        <div class="message-name">James Wilson</div>
+                        <div class="message-time">1h</div>
+                    </div>
+                    <div class="message-preview">Just pushed the latest code changes. Please review when you get a chance.</div>
+                </div>
+            </div>
+            <div class="message-item">
+                <div class="message-avatar">SP</div>
+                <div class="message-content">
+                    <div class="message-sender">
+                        <div class="message-name">Sarah Park</div>
+                        <div class="message-time">3h</div>
+                    </div>
+                    <div class="message-preview">The API integration is complete. Let me know if you need any help testing it.</div>
+                </div>
+            </div>
+            <div class="message-item">
+                <div class="message-avatar">RJ</div>
+                <div class="message-content">
+                    <div class="message-sender">
+                        <div class="message-name">Robert Johnson</div>
+                        <div class="message-time">1d</div>
+                    </div>
+                    <div class="message-preview">Don't forget about our team meeting tomorrow at 10 AM.</div>
+                </div>
+            </div>
+        </div>
+        <div class="messages-footer">
+            <a href="#" class="view-all-link">View all messages</a>
+        </div>
+    </div>
+
+    <!-- User Dropdown -->
+    <div class="user-dropdown" id="userDropdown">
+        <div class="user-dropdown-header">
+            <div class="user-dropdown-avatar">AK</div>
+            <div class="user-dropdown-name">Alex Kim</div>
+            <div class="user-dropdown-email">alex.kim@example.com</div>
+        </div>
+        <ul class="user-dropdown-links">
+            <li>
+                <a href="#" class="user-dropdown-link">
+                    <i data-lucide="user"></i>
+                    My Profile
+                </a>
+            </li>
+            <li>
+                <a href="#" class="user-dropdown-link">
+                    <i data-lucide="settings"></i>
+                    Account Settings
+                </a>
+            </li>
+            <li>
+                <a href="#" class="user-dropdown-link">
+                    <i data-lucide="help-circle"></i>
+                    Help & Support
+                </a>
+            </li>
+            <li>
+                <a href="#" class="user-dropdown-link danger">
+                    <i data-lucide="log-out"></i>
+                    Sign Out
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Modal for adding a new task -->
+    <div class="modal" id="addTaskModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Add New Task</h3>
+                <button class="modal-close" id="closeModal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="taskName">Task Name</label>
+                    <input type="text" id="taskName" class="form-input" placeholder="Enter task name">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="taskDescription">Description (Optional)</label>
+                    <input type="text" id="taskDescription" class="form-input" placeholder="Enter description">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="taskDate">Due Date</label>
+                    <input type="date" id="taskDate" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="taskPriority">Priority</label>
+                    <select id="taskPriority" class="form-select">
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelTask">Cancel</button>
+                <button class="btn btn-primary" id="saveTask">Save Task</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="logo">
+                <div class="logo-icon">
+                    <i data-lucide="hexagon"></i>
+                </div>
+                <h1 class="logo-text">Nexus</h1>
+            </div>
+
+            <div class="nav-section">
+                <h2 class="nav-section-title">Menu</h2>
+                <ul class="nav-links">
+                    <li>
+                        <a href="#" class="nav-link active">
+                            <i data-lucide="layout-dashboard"></i>
+                            Dashboard
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="nav-link">
+                            <i data-lucide="bar-chart-2"></i>
+                            Analytics
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="nav-link">
+                            <i data-lucide="calendar"></i>
+                            Calendar
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="nav-link">
+                            <i data-lucide="message-square"></i>
+                            Messages
+                            <span class="nav-link-badge">5</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="nav-section">
+                <h2 class="nav-section-title">Workspace</h2>
+                <ul class="nav-links">
+                    <li>
+                        <a href="#" class="nav-link">
+                            <i data-lucide="users"></i>
+                            Team
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="nav-link">
+                            <i data-lucide="briefcase"></i>
+                            Projects
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="nav-link">
+                            <i data-lucide="check-square"></i>
+                            Tasks
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="nav-link">
+                            <i data-lucide="file-text"></i>
+                            Documents
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="nav-section">
+                <h2 class="nav-section-title">Settings</h2>
+                <ul class="nav-links">
+                    <li>
+                        <a href="#" class="nav-link">
+                            <i data-lucide="user"></i>
+                            Profile
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="nav-link">
+                            <i data-lucide="settings"></i>
+                            Settings
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="help-card">
+                    <h3 class="help-card-title">Need Help?</h3>
+                    <p class="help-card-text">Check our documentation for quick answers.</p>
+                    <a href="#" class="help-card-button">
+                        <i data-lucide="help-circle"></i>
+                        Help Center
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button class="mobile-menu-button" id="menuToggle">
+                    <i data-lucide="menu"></i>
+                </button>
+                <div class="search-bar" id="searchBar">
+                    <i data-lucide="search"></i>
+                    <input type="text" placeholder="Search..." id="searchInput">
+                </div>
+            </div>
+            <div class="header-right">
+                <button class="header-icon-button notification-button" id="notificationBtn">
+                    <i data-lucide="bell"></i>
+                    <span class="notification-badge"></span>
+                </button>
+                <button class="header-icon-button" id="messageBtn">
+                    <i data-lucide="mail"></i>
+                </button>
+                <button class="header-icon-button theme-toggle" id="themeToggle">
+                    <i data-lucide="sun" id="themeIcon"></i>
+                </button>
+                <div class="user-menu" id="userMenu">
+                    <div class="avatar">AK</div>
+                    <div class="user-info">
+                        <div class="user-name">Alex Kim</div>
+                        <div class="user-role">Product Manager</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Welcome Section -->
+            <section class="welcome-section">
+                <div class="welcome-content">
+                    <h2 class="welcome-title">Welcome back, Alex!</h2>
+                    <p class="welcome-subtitle">Track your team's performance, manage tasks, and monitor your project's progress at a glance.</p>
+                    <div class="welcome-actions">
+                        <button class="btn-outline">
+                            <i data-lucide="plus-circle"></i>
+                            New Project
+                        </button>
+                        <button class="btn-outline">
+                            <i data-lucide="bar-chart"></i>
+                            View Reports
+                        </button>
+                    </div>
+                </div>
+                <img src="/api/placeholder/240/160" alt="Welcome illustration" class="welcome-image" />
+            </section>
+
+            <!-- Dashboard Stats -->
+            <div class="dashboard-stats">
+                <div class="stat-card">
+                    <div class="stat-card-header">
+                        <div class="stat-card-title">Total Users</div>
+                        <div class="stat-card-icon icon-users">
+                            <i data-lucide="users"></i>
+                        </div>
+                    </div>
+                    <div class="stat-card-value">12,847</div>
+                    <div class="stat-card-comparison">
+                        <i data-lucide="trending-up"></i>
+                        <span class="comparison-positive">+12.5% this month</span>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-card-header">
+                        <div class="stat-card-title">Revenue</div>
+                        <div class="stat-card-icon icon-revenue">
+                            <i data-lucide="dollar-sign"></i>
+                        </div>
+                    </div>
+                    <div class="stat-card-value">$48,295</div>
+                    <div class="stat-card-comparison">
+                        <i data-lucide="trending-up"></i>
+                        <span class="comparison-positive">+8.2% this month</span>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-card-header">
+                        <div class="stat-card-title">Orders</div>
+                        <div class="stat-card-icon icon-orders">
+                            <i data-lucide="shopping-bag"></i>
+                        </div>
+                    </div>
+                    <div class="stat-card-value">2,856</div>
+                    <div class="stat-card-comparison">
+                        <i data-lucide="trending-up"></i>
+                        <span class="comparison-positive">+5.3% this month</span>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-card-header">
+                        <div class="stat-card-title">Conversion Rate</div>
+                        <div class="stat-card-icon icon-conversion">
+                            <i data-lucide="percent"></i>
+                        </div>
+                    </div>
+                    <div class="stat-card-value">3.24%</div>
+                    <div class="stat-card-comparison">
+                        <i data-lucide="trending-down"></i>
+                        <span class="comparison-negative">-0.8% this month</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="chart-section">
+                <div class="chart-card">
+                    <div class="chart-card-header">
+                        <div class="chart-card-title">Revenue Overview</div>
+                        <div class="chart-actions">
+                            <button class="chart-filter" id="chartFilter">
+                                <span id="filterText">This Month</span>
+                                <i data-lucide="chevron-down"></i>
+                            </button>
+                            <button class="chart-toggle" id="chartTypeToggle" title="Toggle chart type">
+                                <i data-lucide="bar-chart" id="chartTypeIcon"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="revenueChart"></canvas>
+                    </div>
+                    <div class="chart-legend">
+                        <div class="legend-item">
+                            <div class="legend-color revenue"></div>
+                            <span>Revenue</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color expenses"></div>
+                            <span>Expenses</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="recent-activity">
+                    <div class="activity-header">
+                        <div class="activity-title">Recent Activity</div>
+                        <div class="activity-filter">
+                            <span>All</span>
+                            <i data-lucide="chevron-down"></i>
+                        </div>
+                    </div>
+                    <div class="activity-list">
+                        <div class="activity-item">
+                            <div class="activity-icon">
+                                <i data-lucide="user-plus"></i>
+                            </div>
+                            <div class="activity-content">
+                                <div class="activity-message">
+                                    <strong>Jane Cooper</strong> joined the team
+                                </div>
+                                <div class="activity-time">2 hours ago</div>
+                            </div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="activity-icon">
+                                <i data-lucide="file-plus"></i>
+                            </div>
+                            <div class="activity-content">
+                                <div class="activity-message">
+                                    <strong>Alex Morgan</strong> created a new project
+                                </div>
+                                <div class="activity-time">5 hours ago</div>
+                            </div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="activity-icon">
+                                <i data-lucide="message-circle"></i>
+                            </div>
+                            <div class="activity-content">
+                                <div class="activity-message">
+                                    <strong>Sarah Johnson</strong> commented on a task
+                                </div>
+                                <div class="activity-time">Yesterday</div>
+                            </div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="activity-icon">
+                                <i data-lucide="check-circle"></i>
+                            </div>
+                            <div class="activity-content">
+                                <div class="activity-message">
+                                    <strong>Mike Clark</strong> completed the iOS app design
+                                </div>
+                                <div class="activity-time">2 days ago</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tasks Section -->
+            <div class="tasks-section">
+                <div class="tasks-card">
+                    <div class="tasks-header">
+                        <div class="tasks-title">My Tasks</div>
+                        <button class="add-task-button" id="addTaskBtn">
+                            <i data-lucide="plus"></i>
+                            <span>Add Task</span>
+                        </button>
+                    </div>
+                    <div class="tasks-list" id="tasksList">
+                        <div class="task-item">
+                            <div class="task-checkbox completed"></div>
+                            <div class="task-content">
+                                <div class="task-name">Complete dashboard design</div>
+                                <div class="task-meta">
+                                    <div class="task-date">
+                                        <i data-lucide="calendar"></i>
+                                        <span>Mar 28, 2025</span>
+                                    </div>
+                                    <div class="task-priority priority-high">High</div>
+                                </div>
+                            </div>
+                            <div class="task-actions">
+                                <button class="task-action-button edit" title="Edit task">
+                                    <i data-lucide="edit-2"></i>
+                                </button>
+                                <button class="task-action-button delete" title="Delete task">
+                                    <i data-lucide="trash-2"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="task-item">
+                            <div class="task-checkbox"></div>
+                            <div class="task-content">
+                                <div class="task-name">User research for new features</div>
+                                <div class="task-meta">
+                                    <div class="task-date">
+                                        <i data-lucide="calendar"></i>
+                                        <span>Apr 02, 2025</span>
+                                    </div>
+                                    <div class="task-priority priority-medium">Medium</div>
+                                </div>
+                            </div>
+                            <div class="task-actions">
+                                <button class="task-action-button edit" title="Edit task">
+                                    <i data-lucide="edit-2"></i>
+                                </button>
+                                <button class="task-action-button delete" title="Delete task">
+                                    <i data-lucide="trash-2"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="task-item">
+                            <div class="task-checkbox"></div>
+                            <div class="task-content">
+                                <div class="task-name">Prepare quarterly report</div>
+                                <div class="task-meta">
+                                    <div class="task-date">
+                                        <i data-lucide="calendar"></i>
+                                        <span>Apr 05, 2025</span>
+                                    </div>
+                                    <div class="task-priority priority-high">High</div>
+                                </div>
+                            </div>
+                            <div class="task-actions">
+                                <button class="task-action-button edit" title="Edit task">
+                                    <i data-lucide="edit-2"></i>
+                                </button>
+                                <button class="task-action-button delete" title="Delete task">
+                                    <i data-lucide="trash-2"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="task-item">
+                            <div class="task-checkbox"></div>
+                            <div class="task-content">
+                                <div class="task-name">Schedule team meeting</div>
+                                <div class="task-meta">
+                                    <div class="task-date">
+                                        <i data-lucide="calendar"></i>
+                                        <span>Apr 08, 2025</span>
+                                    </div>
+                                    <div class="task-priority priority-low">Low</div>
+                                </div>
+                            </div>
+                            <div class="task-actions">
+                                <button class="task-action-button edit" title="Edit task">
+                                    <i data-lucide="edit-2"></i>
+                                </button>
+                                <button class="task-action-button delete" title="Delete task">
+                                    <i data-lucide="trash-2"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="team-members">
+                    <div class="activity-header">
+                        <div class="activity-title">Team Members</div>
+                    </div>
+                    <div class="members-list">
+                        <div class="member-item">
+                            <div class="member-avatar">AK</div>
+                            <div class="member-info">
+                                <div class="member-name">Alex Kim</div>
+                                <div class="member-role">Product Manager</div>
+                            </div>
+                            <div class="member-status status-online">
+                                <div class="status-indicator"></div>
+                                <span>Online</span>
+                            </div>
+                            <div class="member-actions">
+                                <button class="member-action-button" title="Message">
+                                    <i data-lucide="message-square"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="member-item">
+                            <div class="member-avatar">ML</div>
+                            <div class="member-info">
+                                <div class="member-name">Maria Lopez</div>
+                                <div class="member-role">UI Designer</div>
+                            </div>
+                            <div class="member-status status-online">
+                                <div class="status-indicator"></div>
+                                <span>Online</span>
+                            </div>
+                            <div class="member-actions">
+                                <button class="member-action-button" title="Message">
+                                    <i data-lucide="message-square"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="member-item">
+                            <div class="member-avatar">JW</div>
+                            <div class="member-info">
+                                <div class="member-name">James Wilson</div>
+                                <div class="member-role">Frontend Developer</div>
+                            </div>
+                            <div class="member-status status-offline">
+                                <div class="status-indicator"></div>
+                                <span>Offline</span>
+                            </div>
+                            <div class="member-actions">
+                                <button class="member-action-button" title="Message">
+                                    <i data-lucide="message-square"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="member-item">
+                            <div class="member-avatar">SP</div>
+                            <div class="member-info">
+                                <div class="member-name">Sarah Park</div>
+                                <div class="member-role">Backend Developer</div>
+                            </div>
+                            <div class="member-status status-online">
+                                <div class="status-indicator"></div>
+                                <span>Online</span>
+                            </div>
+                            <div class="member-actions">
+                                <button class="member-action-button" title="Message">
+                                    <i data-lucide="message-square"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="member-item">
+                            <div class="member-avatar">RJ</div>
+                            <div class="member-info">
+                                <div class="member-name">Robert Johnson</div>
+                                <div class="member-role">QA Engineer</div>
+                            </div>
+                            <div class="member-status status-offline">
+                                <div class="status-indicator"></div>
+                                <span>Offline</span>
+                            </div>
+                            <div class="member-actions">
+                                <button class="member-action-button" title="Message">
+                                    <i data-lucide="message-square"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Create and show toast notifications
+        function showToast(type, title, message, duration = 5000) {
+            const toastContainer = document.getElementById('toastContainer');
+            
+            // Create toast element
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            
+            let iconName;
+            switch(type) {
+                case 'success':
+                    iconName = 'check-circle';
+                    break;
+                case 'error':
+                    iconName = 'x-circle';
+                    break;
+                case 'warning':
+                    iconName = 'alert-triangle';
+                    break;
+                case 'info':
+                default:
+                    iconName = 'info';
+                    break;
+            }
+            
+            // Create progress bar
+            const progressBar = document.createElement('div');
+            progressBar.className = 'toast-progress';
+            progressBar.style.width = '100%';
+            progressBar.style.backgroundColor = type === 'success' ? 'var(--secondary-color)' : 
+                                                 type === 'error' ? 'var(--danger-color)' :
+                                                 type === 'warning' ? 'var(--warning-color)' : 'var(--info-color)';
+            
+            // Toast content structure
+            toast.innerHTML = `
+                <div class="toast-icon ${type}">
+                    <i data-lucide="${iconName}"></i>
+                </div>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                </div>
+                <div class="toast-close" title="Dismiss">
+                    <i data-lucide="x"></i>
+                </div>
+            `;
+            
+            toast.appendChild(progressBar);
+            toastContainer.appendChild(toast);
+            
+            // Initialize Lucide icon for the toast
+            lucide.createIcons({
+                icons: {
+                    [iconName]: toast.querySelector(`[data-lucide="${iconName}"]`),
+                    'x': toast.querySelector('[data-lucide="x"]')
+                }
+            });
+            
+            // Animate the toast in
+            setTimeout(() => {
+                toast.classList.add('active');
+            }, 10);
+            
+            // Animate the progress bar
+            const startTime = Date.now();
+            const interval = setInterval(() => {
+                const elapsedTime = Date.now() - startTime;
+                const width = 100 - (elapsedTime / duration * 100);
+                
+                if (width <= 0) {
+                    clearInterval(interval);
+                    removeToast();
+                } else {
+                    progressBar.style.width = `${width}%`;
+                }
+            }, 10);
+            
+            // Close button functionality
+            const closeButton = toast.querySelector('.toast-close');
+            closeButton.addEventListener('click', () => {
+                clearInterval(interval);
+                removeToast();
+            });
+            
+            // Auto remove toast after duration
+            const timer = setTimeout(removeToast, duration);
+            
+            // Remove toast function
+            function removeToast() {
+                toast.classList.remove('active');
+                toast.style.transform = 'translateX(120%)';
+                clearTimeout(timer);
+                
+                // Remove from DOM after transition ends
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                }, 300);
+            }
+        }
+
+        // Theme toggle functionality
+        document.addEventListener('DOMContentLoaded', () => {
+            const themeToggle = document.getElementById('themeToggle');
+            const themeIcon = document.getElementById('themeIcon');
+            
+            // Check for saved theme preference or use the preferred color scheme
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                themeIcon.setAttribute('name', 'moon');
+            } else {
+                document.documentElement.setAttribute('data-theme', 'light');
+                themeIcon.setAttribute('name', 'sun');
+            }
+            
+            // Theme toggle event
+            themeToggle.addEventListener('click', () => {
+                const currentTheme = document.documentElement.getAttribute('data-theme');
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                
+                document.documentElement.setAttribute('data-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+                
+                if (newTheme === 'dark') {
+                    themeIcon.setAttribute('name', 'moon');
+                    showToast('info', 'Theme Updated', 'Dark mode activated', 3000);
+                } else {
+                    themeIcon.setAttribute('name', 'sun');
+                    showToast('info', 'Theme Updated', 'Light mode activated', 3000);
+                }
+                
+                // Update chart colors if they exist
+                if (window.revenueChart) {
+                    updateChartColors(window.revenueChart);
+                }
+            });
+        });
+
+        // Search functionality
+        const searchInput = document.getElementById('searchInput');
+        const searchBar = document.getElementById('searchBar');
+        const searchResults = document.getElementById('searchResults');
+        
+        searchInput.addEventListener('focus', () => {
+            searchBar.classList.add('active');
+        });
+        
+        searchInput.addEventListener('blur', () => {
+            setTimeout(() => {
+                searchBar.classList.remove('active');
+                searchResults.classList.remove('active');
+            }, 200);
+        });
+        
+        searchInput.addEventListener('input', () => {
+            if (searchInput.value.length > 0) {
+                searchResults.classList.add('active');
+            } else {
+                searchResults.classList.remove('active');
+            }
+        });
+        
+        // Make search result items clickable
+        document.querySelectorAll('.search-result-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const title = item.querySelector('.search-result-title').textContent;
+                showToast('info', 'Navigation', `Navigating to ${title}`, 3000);
+                searchResults.classList.remove('active');
+            });
+        });
+
+        // Dropdown toggling functionality
+        function setupDropdown(toggleId, dropdownId, closeOnOutsideClick = true) {
+            const toggleButton = document.getElementById(toggleId);
+            const dropdown = document.getElementById(dropdownId);
+            
+            toggleButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+                dropdown.classList.toggle('active');
+                
+                // Close other dropdowns
+                document.querySelectorAll('.notifications-dropdown, .messages-dropdown, .user-dropdown, .search-results').forEach(element => {
+                    if (element.id !== dropdownId && element.classList.contains('active')) {
+                        element.classList.remove('active');
+                    }
+                });
+            });
+            
+            if (closeOnOutsideClick) {
+                document.addEventListener('click', (e) => {
+                    if (!dropdown.contains(e.target) && dropdown.classList.contains('active')) {
+                        dropdown.classList.remove('active');
+                    }
+                });
+            }
+        }
+        
+        // Setup dropdowns
+        setupDropdown('notificationBtn', 'notificationsDropdown');
+        setupDropdown('messageBtn', 'messagesDropdown');
+        setupDropdown('userMenu', 'userDropdown');
+        
+        // Mark all notifications as read
+        document.getElementById('markAllRead').addEventListener('click', () => {
+            document.querySelectorAll('.notification-item.unread').forEach(notification => {
+                notification.classList.remove('unread');
+            });
+            showToast('success', 'Notifications', 'All notifications marked as read', 3000);
+        });
+        
+        // Make notification items clickable
+        document.querySelectorAll('.notification-item').forEach(item => {
+            item.addEventListener('click', () => {
+                item.classList.remove('unread');
+                showToast('info', 'Notification', 'Opening notification details', 3000);
+            });
+        });
+        
+        // Make message items clickable
+        document.querySelectorAll('.message-item').forEach(item => {
+            item.addEventListener('click', () => {
+                item.classList.remove('unread');
+                const sender = item.querySelector('.message-name').textContent;
+                showToast('info', 'Messages', `Opening conversation with ${sender}`, 3000);
+            });
+        });
+
+        // Mobile menu toggle
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
+
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+        });
+
+        overlay.addEventListener('click', () => {
+            sidebar.classList.remove('active');
+            overlay.classList.remove('active');
+        });
+
+        // Task checkbox toggle
+        document.querySelectorAll('.task-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('click', () => {
+                const wasCompleted = checkbox.classList.contains('completed');
+                checkbox.classList.toggle('completed');
+                
+                if (wasCompleted) {
+                    showToast('info', 'Task Updated', 'Task marked as incomplete', 3000);
+                } else {
+                    showToast('success', 'Task Completed', 'Task marked as complete', 3000);
+                }
+            });
+        });
+
+        // Task action buttons
+        document.querySelectorAll('.task-action-button.edit').forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const taskItem = button.closest('.task-item');
+                const taskName = taskItem.querySelector('.task-name').textContent;
+                showToast('info', 'Edit Task', `Editing task: ${taskName}`, 3000);
+            });
+        });
+        
+        document.querySelectorAll('.task-action-button.delete').forEach(button => {
+            button.addEventListener('
