@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crazy Chaos Carnage (Optimized)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bungee+Shade&family=Press+Start+2P&display=swap');
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Press Start 2P', cursive;
+            background: #111;
+            color: white;
+        }
+
+        #gameCanvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        #uiOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none; /* Important: Permet les clics sur le canvas en dessous */
+        }
+
+        #startScreen, #gameOverScreen {
+            pointer-events: auto; /* Important: Rend les boutons cliquables */
+        }
+
+        .pixel-box {
+            border: 4px solid #fff;
+            box-shadow: 8px 8px 0 rgba(255,255,255,0.2);
+            position: relative;
+            background: rgba(0,0,0,0.7);
+        }
+
+        .pixel-box::after {
+            content: '';
+            position: absolute;
+            top: -12px;
+            left: -12px;
+            right: -12px;
+            bottom: -12px;
+            border: 4px solid #f0f;
+            z-index: -1;
+            opacity: 0.5;
+        }
+
+        /* --- (Keep other existing CSS styles: .neon-text, .rainbow-text, .glitch-text, .button-crazy, .crazy-particle, .rainbow-bg etc.) --- */
+        .neon-text {
+            text-shadow: 0 0 5px #ff00ff, 0 0 10px #ff00ff, 0 0 20px #ff00ff;
+        }
+
+        .rainbow-text {
+            background: linear-gradient(90deg, #ff0000, #ff7700, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            text-shadow: none;
+        }
+
+        .glitch-text {
+            position: relative;
+        }
+
+        .glitch-text::before, .glitch-text::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .glitch-text::before {
+            color: #0ff;
+            z-index: -1;
+            animation: glitch-effect 3s infinite;
+        }
+
+        .glitch-text::after {
+            color: #f0f;
+            z-index: -2;
+            animation: glitch-effect 2s infinite reverse;
+        }
+
+        @keyframes glitch-effect {
+            0% { transform: translate(0); }
+            20% { transform: translate(-3px, 3px); }
+            40% { transform: translate(-3px, -3px); }
+            60% { transform: translate(3px, 3px); }
+            80% { transform: translate(3px, -3px); }
+            100% { transform: translate(0); }
+        }
+
+        .button-crazy {
+            background: #ff00ff;
+            color: #fff;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s;
+            font-family: 'Press Start 2P', cursive;
+            box-shadow: 0 0 10px #ff00ff, 0 0 20px #ff00ff;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .button-crazy:hover {
+            background: #00ffff;
+            box-shadow: 0 0 20px #00ffff, 0 0 40px #00ffff;
+            transform: translateY(-5px);
+        }
+
+        .button-crazy::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.3), transparent);
+            transform: rotate(45deg);
+            transition: all 0.5s;
+        }
+
+        .button-crazy:hover::before {
+            left: 100%;
+        }
+
+        .crazy-particle {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 3;
+        }
+
+        .rainbow-bg {
+            animation: rainbow-bg 5s linear infinite;
+            background-size: 400% 400%;
+            background-image: linear-gradient(90deg, #ff0000, #ff7700, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff);
+        }
+
+        @keyframes rainbow-bg {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+    </style>
+</head>
+<body class="h-screen w-full flex items-center justify-center relative">
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="uiOverlay" class="flex flex-col items-center justify-between p-6">
+        <div class="w-full flex justify-between items-center">
+            <div class="pixel-box p-3">
+                <h2 class="rainbow-text">SCORE: <span id="scoreDisplay">0</span></h2>
+            </div>
+            <div class="pixel-box p-3">
+                <h2 class="neon-text">CRAZY: <span id="crazyMeter">0%</span></h2>
+            </div>
+            <div class="pixel-box p-3">
+                <h2 class="text-yellow-300">LIVES: <span id="livesDisplay">❤️❤️❤️</span></h2>
+            </div>
+        </div>
+
+        <div id="startScreen" class="start-screen pixel-box p-10 flex flex-col items-center max-w-2xl text-center" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+            <h1 class="glitch-text text-6xl font-bold mb-6" data-text="CRAZY CHAOS CARNAGE">CRAZY CHAOS CARNAGE</h1>
+            <p class="text-xl mb-8 text-center">Un jeu où tout peut arriver!<br>
+            Déplacez-vous avec les flèches, tirez avec ESPACE<br>
+            Survivez le plus longtemps possible dans ce monde complètement fou!</p>
+            <button id="startButton" class="button-crazy mt-4">
+                COMMENCER LA FOLIE
+            </button>
+        </div>
+
+        <div id="gameOverScreen" class="game-over-screen hidden pixel-box p-10 flex flex-col items-center max-w-2xl text-center" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+            <h1 class="text-6xl font-bold mb-6 text-red-400 neon-text">VOUS AVEZ PERDU!</h1>
+            <p class="text-2xl mb-4 rainbow-text">Score final: <span id="finalScore">0</span></p>
+            <p class="text-xl mb-8">Niveau de folie atteint: <span id="crazyLevel">0%</span></p>
+            <button id="restartButton" class="button-crazy">
+                REESSAYER
+            </button>
+        </div>
+
+         <div class="flex-grow"></div>
+    </div>
+
+    <script>
+        // Game Constants
+        const CANVAS_WIDTH = window.innerWidth;
+        const CANVAS_HEIGHT = window.innerHeight;
+        const PLAYER_SPEED = 7;
+        const CRAZY_INCREMENT = 0.2;
+
+        // Game State
+        let gameRunning = false;
+        let score = 0;
+        let lives = 3;
+        let crazyMeter = 0;
+        let player;
+        let enemies = [];
+        let projectiles = [];
+        let explosions = [];
+        let powerups = [];
+        let backgrounds = [];
+        let crazinessEffects = [];
+        let keys = {};
+        let audioContext;
+        let animationFrameId; // To cancel animation frame on game over
+
+        // Optimization: Store last displayed UI values
+        let lastDisplayedScore = -1;
+        let lastDisplayedLives = -1;
+        let lastDisplayedCrazy = -1;
+
+
+        // DOM Elements (cached)
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const livesDisplay = document.getElementById('livesDisplay');
+        const crazyMeterDisplay = document.getElementById('crazyMeter');
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const startButton = document.getElementById('startButton');
+        const restartButton = document.getElementById('restartButton');
+        const finalScore = document.getElementById('finalScore');
+        const crazyLevel = document.getElementById('crazyLevel');
+
+        // Initialize game
+        function init() {
+            canvas.width = CANVAS_WIDTH;
+            canvas.height = CANVAS_HEIGHT;
+
+            // Attempt to initialize AudioContext safely later (in startGame)
+            audioContext = null;
+
+            createBackgroundPattern();
+
+            window.addEventListener('keydown', (e) => { keys[e.code] = true; });
+            window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+
+            if (startButton) {
+                startButton.addEventListener('click', startGame);
+            } else {
+                console.error("ERREUR: Bouton de démarrage non trouvé!");
+            }
+
+            if (restartButton) {
+                restartButton.addEventListener('click', restartGame);
+            } else {
+                console.error("ERREUR: Bouton de redémarrage non trouvé!");
+            }
+
+            // Player object
+            player = {
+                x: CANVAS_WIDTH / 2,
+                y: CANVAS_HEIGHT - 100,
+                width: 50, // Hitbox width
+                height: 50, // Hitbox height
+                visualWidth: 40,
+                visualHeight: 40,
+                speed: PLAYER_SPEED,
+                color: '#00ffff',
+                lastShotTime: 0,
+                shootDelay: 250,
+                isInvincible: false,
+                invincibilityTimer: 0,
+                draw() {
+                    ctx.save();
+                    ctx.fillStyle = this.isInvincible ? `rgba(0, 255, 255, ${0.5 + Math.sin(Date.now()/50)*0.2})` : this.color;
+
+                    const drawX = this.x - this.visualWidth / 2;
+                    const drawY = this.y - this.visualHeight / 2;
+
+                    if (crazyMeter < 50) {
+                        ctx.beginPath();
+                        ctx.moveTo(this.x, drawY);
+                        ctx.lineTo(drawX + this.visualWidth, drawY + this.visualHeight);
+                        ctx.lineTo(drawX, drawY + this.visualHeight);
+                        ctx.closePath();
+                    } else {
+                        ctx.beginPath();
+                        const baseRadius = this.visualWidth / 2;
+                        const points = 5 + Math.floor(crazyMeter / 25); // Slightly fewer points
+                        const pulse = Math.sin(Date.now() / 160) * (baseRadius * 0.15); // Slower/smaller pulse
+                        const rotation = Date.now() / 900;
+
+                        for (let i = 0; i < points * 2; i++) {
+                             const radius = (i % 2 === 0) ? baseRadius + pulse : baseRadius * 0.6 + pulse;
+                             const angle = (i / points) * Math.PI + rotation;
+                             ctx.lineTo(
+                                 this.x + Math.cos(angle) * radius,
+                                 this.y + Math.sin(angle) * radius
+                             );
+                         }
+                        ctx.closePath();
+                    }
+                    ctx.fill();
+
+                    // Draw glow (Reduced blur)
+                    ctx.shadowColor = this.color;
+                    ctx.shadowBlur = 15; // Reduced from 20
+                    ctx.fill();
+
+                    if (keys['ArrowUp'] || keys['ArrowDown'] || keys['ArrowLeft'] || keys['ArrowRight']) {
+                         ctx.fillStyle = `hsl(${(Date.now()/5) % 360}, 100%, 70%)`;
+                         ctx.beginPath();
+                         const engineY = drawY + this.visualHeight;
+                         ctx.arc(this.x, engineY + 5, 8 + Math.random()*4, 0, Math.PI * 2); // Slightly smaller engine
+                         ctx.shadowColor = ctx.fillStyle;
+                         ctx.shadowBlur = 12; // Reduced
+                         ctx.fill();
+                     }
+
+                    ctx.restore(); // Restores fillStyle and shadow settings
+                },
+                move() {
+                    if (keys['ArrowLeft'] && this.x > this.width / 2) {
+                        this.x -= this.speed;
+                    }
+                    if (keys['ArrowRight'] && this.x < CANVAS_WIDTH - this.width / 2) {
+                        this.x += this.speed;
+                    }
+                    if (keys['ArrowUp'] && this.y > this.height / 2) {
+                        this.y -= this.speed;
+                    }
+                    if (keys['ArrowDown'] && this.y < CANVAS_HEIGHT - this.height / 2) {
+                        this.y += this.speed;
+                    }
+
+                    if (crazyMeter > 30) {
+                        this.x += Math.sin(Date.now() / (200 - crazyMeter)) * (crazyMeter / 35); // Slightly reduced effect
+                        this.y += Math.cos(Date.now() / (180 - crazyMeter)) * (crazyMeter / 40);
+                        this.x = Math.max(this.width / 2, Math.min(CANVAS_WIDTH - this.width / 2, this.x));
+                        this.y = Math.max(this.height / 2, Math.min(CANVAS_HEIGHT - this.height / 2, this.y));
+                    }
+
+                    if (this.isInvincible) {
+                        this.invincibilityTimer -= 16; // Approx ms per frame
+                        if (this.invincibilityTimer <= 0) {
+                            this.isInvincible = false;
+                            // Color is handled by ternary in draw
+                        }
+                    }
+                },
+                shoot() {
+                    const now = Date.now();
+                    if (!gameRunning || now - this.lastShotTime < this.shootDelay) return;
+                    this.lastShotTime = now;
+
+                    const projectileSpeed = 8 + crazyMeter / 20;
+                    const baseDamage = 1;
+
+                    if (crazyMeter < 30) {
+                        spawnProjectile(this.x, this.y - this.visualHeight / 2, 0, -projectileSpeed, 5, 15, '#00ffff', baseDamage);
+                    } else if (crazyMeter < 70) {
+                        const spreadAngle = Math.PI / 18;
+                        spawnProjectile(this.x, this.y - this.visualHeight / 2, 0, -projectileSpeed, 5, 15, `hsl(${(now / 20) % 360}, 100%, 50%)`, baseDamage);
+                        spawnProjectile(this.x, this.y - this.visualHeight / 2, Math.sin(-spreadAngle) * projectileSpeed, Math.cos(-spreadAngle) * -projectileSpeed, 5, 15, `hsl(${(now / 20 + 20) % 360}, 100%, 50%)`, baseDamage);
+                        spawnProjectile(this.x, this.y - this.visualHeight / 2, Math.sin(spreadAngle) * projectileSpeed, Math.cos(spreadAngle) * -projectileSpeed, 5, 15, `hsl(${(now / 20 - 20) % 360}, 100%, 50%)`, baseDamage);
+                    } else {
+                        const numShots = 5 + Math.floor(crazyMeter / 30); // Slightly fewer shots at max
+                        const totalSpread = Math.PI / 6 + (crazyMeter - 70) * (Math.PI / 190); // Slightly reduced spread increase
+                        for (let i = 0; i < numShots; i++) {
+                            const angle = -totalSpread / 2 + (i / (numShots - 1)) * totalSpread;
+                            const hue = ((now / 10) + i * (360 / numShots)) % 360;
+                            const pSize = 6 + Math.random() * 2; // Slightly smaller max size
+                            spawnProjectile(
+                                this.x,
+                                this.y - this.visualHeight / 2,
+                                Math.sin(angle) * projectileSpeed,
+                                Math.cos(angle) * -projectileSpeed,
+                                pSize, pSize * 2.5,
+                                `hsl(${hue}, 100%, 50%)`,
+                                baseDamage + Math.floor(crazyMeter/50)
+                            );
+                        }
+                        this.shootDelay = Math.max(100, 250 - crazyMeter);
+                    }
+                    playSound('shoot');
+                },
+                activateInvincibility(duration = 1500) {
+                    this.isInvincible = true;
+                    this.invincibilityTimer = duration;
+                }
+            };
+            console.log("Initialisation terminée.");
+        }
+
+        // Create background pattern
+        function createBackgroundPattern() {
+            backgrounds = [];
+            const numStars = 80 + Math.floor(crazyMeter * 1.2); // Slightly fewer stars
+
+            for (let i = 0; i < numStars; i++) {
+                backgrounds.push({
+                    x: Math.random() * CANVAS_WIDTH,
+                    y: Math.random() * CANVAS_HEIGHT,
+                    size: Math.random() * (crazyMeter > 50 ? 3 : 2) + 0.5, // Smaller stars
+                    speed: Math.random() * 1.5 + 0.5 + crazyMeter / 40, // Slightly slower
+                    color: `hsl(${Math.random() * 360}, 90%, ${60 + Math.random()*25}%)` // Less intense colors maybe
+                });
+            }
+        }
+
+        // Start game
+        function startGame() {
+            console.log("Tentative de démarrage du jeu...");
+            // Try to initialize/resume AudioContext on user interaction
+            if (!audioContext && (window.AudioContext || window.webkitAudioContext)) {
+                 try {
+                     audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                 } catch(e) {
+                     console.error("Impossible de créer AudioContext:", e);
+                     audioContext = null;
+                 }
+             }
+             if (audioContext && audioContext.state === 'suspended') {
+                 audioContext.resume().catch(e => console.error("Erreur AudioContext resume:", e));
+             }
+
+            // Reset state
+            gameRunning = true;
+            score = 0;
+            lives = 3;
+            crazyMeter = 0;
+            enemies = [];
+            projectiles = [];
+            explosions = [];
+            powerups = [];
+            crazinessEffects = [];
+            keys = {};
+
+            lastDisplayedScore = -1; // Force UI update
+            lastDisplayedLives = -1;
+            lastDisplayedCrazy = -1;
+
+
+            player.x = CANVAS_WIDTH / 2;
+            player.y = CANVAS_HEIGHT - 100;
+            player.lastShotTime = 0;
+            player.shootDelay = 250;
+            player.isInvincible = false;
+            player.invincibilityTimer = 0;
+
+            if (startScreen) startScreen.classList.add('hidden');
+            if (gameOverScreen) gameOverScreen.classList.add('hidden');
+
+            updateScore();
+            updateLives();
+            updateCrazyMeter();
+            createBackgroundPattern();
+
+            for (let i = 0; i < 5; i++) {
+                spawnEnemy();
+            }
+
+            console.log("Jeu démarré!");
+            if (animationFrameId) cancelAnimationFrame(animationFrameId); // Cancel previous loop if any
+            animationFrameId = requestAnimationFrame(gameLoop); // Start the loop
+        }
+
+        // Game loop
+        function gameLoop(timestamp) {
+            if (!gameRunning) return;
+
+            // Clear canvas with reduced trail effect when very crazy
+            ctx.fillStyle = `rgba(10, 10, 20, ${crazyMeter > 80 ? 0.2 : 0.3})`; // Less trail if very crazy
+            ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+            applyCrazyEffects(); // Apply global effects (like potential shake)
+
+            updateBackground();
+
+            if (keys['Space']) {
+                player.shoot();
+            }
+
+            player.move();
+            player.draw();
+
+            updateEnemies();
+            updateProjectiles();
+            updateExplosions();
+            updatePowerups();
+            updateCrazinessEffects();
+
+            checkCollisions();
+
+            increaseCrazyMeter(CRAZY_INCREMENT * (1 + score / 12000)); // Slower increase based on score
+
+            // Spawn enemies (slightly adjusted rate)
+            if (Math.random() * 100 < 1.3 + crazyMeter / 10 + score / 6000) {
+                 spawnEnemy();
+             }
+
+            // Spawn powerups (slightly adjusted rate)
+            if (Math.random() * 1000 < 7) {
+                 spawnPowerup();
+             }
+
+            // Reset transformations applied by applyCrazyEffects (like screen shake)
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+            animationFrameId = requestAnimationFrame(gameLoop); // Continue the loop
+        }
+
+        // Update background stars (Optimized: no shadows)
+        function updateBackground() {
+            backgrounds.forEach(star => {
+                star.y += star.speed;
+
+                if (star.y > CANVAS_HEIGHT + star.size) {
+                    star.y = -star.size;
+                    star.x = Math.random() * CANVAS_WIDTH;
+                    star.speed = Math.random() * 1.5 + 0.5 + crazyMeter / 40;
+                    star.color = `hsl(${Math.random() * 360}, 90%, ${60 + Math.random()*25}%)`;
+                }
+
+                // Draw star (NO SHADOW for performance)
+                ctx.fillStyle = star.color;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+             // No need to reset shadowBlur here as we didn't set it
+        }
+
+        // Spawn an enemy
+        function spawnEnemy() {
+            const baseSize = 25;
+            const sizeVariation = 15 + crazyMeter / 6; // Less variation
+            const size = baseSize + Math.random() * sizeVariation;
+            const speed = 1 + Math.random() * 2.0 + crazyMeter / 35 + score / 12000; // Slightly slower scaling
+            const hp = 1 + Math.floor(crazyMeter / 18 + size / 35); // Slightly less HP scaling
+            const spawnEdge = Math.random();
+
+            let startX, startY;
+            if (spawnEdge < 0.3 || enemies.length < 5) {
+                startX = Math.random() * (CANVAS_WIDTH - size);
+                startY = -size;
+            } else if (spawnEdge < 0.65) {
+                startX = -size;
+                startY = Math.random() * (CANVAS_HEIGHT * 0.6);
+            } else {
+                startX = CANVAS_WIDTH + size;
+                startY = Math.random() * (CANVAS_HEIGHT * 0.6);
+            }
+
+            let type = Math.floor(Math.random() * (2 + Math.floor(crazyMeter / 25)));
+            let color = `hsl(${Math.random() * 360}, 100%, 50%)`;
+            let movementPattern = Math.floor(Math.random() * (1 + crazyMeter / 30)); // Slightly less likely complex patterns
+            let turnSpeed = (Math.random() - 0.5) * 0.04 * (crazyMeter / 50); // Slightly reduced turn speed
+
+            const enemy = {
+                x: startX, y: startY, width: size, height: size, speed: speed,
+                type: type, hp: hp, maxHp: hp, color: color, movementPattern: movementPattern,
+                targetAngle: Math.atan2(player.y - startY, player.x - startX),
+                angle: spawnEdge < 0.3 ? Math.PI / 2 : (spawnEdge < 0.65 ? 0 : Math.PI),
+                turnSpeed: turnSpeed,
+                draw() {
+                    ctx.save();
+                    // Health bar (draws only if damaged) - keep this as it's useful feedback
+                    if (this.hp < this.maxHp && this.maxHp > 1) {
+                        const barWidth = this.width * 0.8;
+                        const barHeight = 5;
+                        const barX = this.x + this.width * 0.1;
+                        const barY = this.y - barHeight - 3;
+                        ctx.fillStyle = '#555';
+                        ctx.fillRect(barX, barY, barWidth, barHeight);
+                        const hpRatio = this.hp / this.maxHp;
+                        ctx.fillStyle = hpRatio > 0.5 ? '#0f0' : hpRatio > 0.2 ? '#ff0' : '#f00';
+                        ctx.fillRect(barX, barY, barWidth * hpRatio, barHeight);
+                    }
+
+                    ctx.fillStyle = this.color;
+                    ctx.shadowColor = this.color;
+                    ctx.shadowBlur = 8; // Reduced from 10
+                    ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+                    ctx.rotate(this.angle + Math.PI / 2);
+                    const w = this.width / 2;
+                    const h = this.height / 2;
+
+                    ctx.beginPath();
+                     if (this.type === 0) { ctx.rect(-w, -h, this.width, this.height); }
+                     else if (this.type === 1) { ctx.moveTo(0, -h); ctx.lineTo(w, h); ctx.lineTo(-w, h); }
+                     else if (this.type === 2) { ctx.arc(0, 0, w, 0, Math.PI * 2); }
+                     else if (this.type === 3) {
+                         const spikes = 5;
+                         for (let i = 0; i < spikes * 2; i++) {
+                             const radius = (i % 2 === 0) ? w : w * 0.5;
+                             const angle = (i / spikes) * Math.PI - Math.PI / 2;
+                             ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
+                         }
+                     } else {
+                         const points = 4 + Math.floor(Math.random()*3); // Simpler shape
+                         for (let i = 0; i < points; i++) {
+                             const angle = (i / points) * Math.PI * 2 + Date.now() / (600 + Math.random()*200);
+                             const radius = w * (0.7 + Math.random()*0.5);
+                             ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
+                         }
+                     }
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.restore();
+                    // Shadow reset is handled by restore()
+                },
+                update() {
+                    // Movement logic (keep as is, seems reasonable)
+                     if (this.movementPattern === 0) {
+                         this.x += Math.cos(this.angle) * this.speed;
+                         this.y += Math.sin(this.angle) * this.speed;
+                     } else if (this.movementPattern === 1) {
+                         const baseAngle = this.angle;
+                         const perpendicularAngle = baseAngle + Math.PI / 2;
+                         const oscillation = Math.sin(Date.now() / (350 + Math.random()*200) + this.y / 60) * (2 + crazyMeter / 25);
+                         this.x += Math.cos(baseAngle) * this.speed + Math.cos(perpendicularAngle) * oscillation;
+                         this.y += Math.sin(baseAngle) * this.speed + Math.sin(perpendicularAngle) * oscillation;
+                     } else if (this.movementPattern === 2) {
+                         const targetAngle = Math.atan2(player.y - this.y, player.x - this.x);
+                         let angleDiff = targetAngle - this.angle;
+                         while (angleDiff <= -Math.PI) angleDiff += Math.PI * 2;
+                         while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                         this.angle += Math.sign(angleDiff) * Math.min(Math.abs(angleDiff), 0.018 + crazyMeter / 2200); // Slower turn
+
+                         this.x += Math.cos(this.angle) * this.speed;
+                         this.y += Math.sin(this.angle) * this.speed;
+                     } else {
+                         this.angle += (Math.random() - 0.5) * (0.08 + crazyMeter / 600);
+                         this.x += Math.cos(this.angle) * this.speed;
+                         this.y += Math.sin(this.angle) * this.speed;
+                     }
+
+                    if (this.turnSpeed !== 0) { this.angle += this.turnSpeed; }
+
+                    const margin = 100;
+                    if (this.y > CANVAS_HEIGHT + margin || this.y < -margin || this.x < -margin || this.x > CANVAS_WIDTH + margin) {
+                        this.remove = true;
+                        if (this.y < CANVAS_HEIGHT + margin) {
+                            increaseCrazyMeter(0.3); // Less penalty
+                        }
+                    }
+                }
+            };
+            enemies.push(enemy);
+        }
+
+        // Spawn a powerup
+        function spawnPowerup() {
+            const size = 25;
+            const speed = 2 + crazyMeter / 60; // Slightly slower
+            const availableTypes = [0, 1, 2];
+            if (crazyMeter > 40) availableTypes.push(3);
+            if (crazyMeter > 60) availableTypes.push(4);
+            if (crazyMeter > 80) availableTypes.push(5);
+            const type = availableTypes[Math.floor(Math.random() * availableTypes.length)];
+
+            const powerup = {
+                x: Math.random() * (CANVAS_WIDTH - size), y: -size, width: size, height: size,
+                speed: speed, type: type, pulse: 0,
+                draw() {
+                    ctx.save();
+                    let color, symbol = '';
+                    this.pulse = Math.sin(Date.now()/160) * 2.5; // Slightly reduced pulse
+
+                    switch(this.type) {
+                        case 0: color = '#ff00ff'; symbol = '❤️'; break;
+                        case 1: color = '#ffff00'; symbol = '★'; break;
+                        case 2: color = '#00ffff'; symbol = '🌀'; break;
+                        case 3: color = '#00ff00'; symbol = '🛡️'; break;
+                        case 4: color = '#ffa500'; symbol = '⚡'; break;
+                        case 5: color = '#ff4444'; symbol = '💥'; break;
+                    }
+
+                    ctx.fillStyle = color;
+                    ctx.shadowColor = color;
+                    ctx.shadowBlur = 12; // Reduced
+                    ctx.beginPath();
+                    ctx.arc(this.x + this.width / 2, this.y + this.height / 2, this.width / 2 + this.pulse, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.font = `${this.width * 0.7}px Arial`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    // No shadow for text is good (already was like this)
+                    ctx.fillStyle = '#000';
+                    ctx.fillText(symbol, this.x + this.width / 2, this.y + this.height / 2 + 2);
+                    ctx.restore();
+                },
+                update() {
+                    this.y += this.speed;
+                    this.x += Math.sin(this.y / 55) * 0.4; // Slightly less side movement
+                    if (this.y > CANVAS_HEIGHT + this.height) { this.remove = true; }
+                }
+            };
+            powerups.push(powerup);
+        }
+
+        // Spawn a projectile (tir du joueur)
+        function spawnProjectile(x, y, vx, vy, width, height, color, damage) {
+            projectiles.push({
+                x: x - width / 2, y: y, vx: vx, vy: vy, width: width, height: height,
+                color: color, damage: damage,
+                draw() {
+                    ctx.save();
+                    ctx.fillStyle = this.color;
+                    ctx.shadowColor = this.color;
+                    ctx.shadowBlur = 8; // Reduced
+                    ctx.fillRect(this.x, this.y, this.width, this.height);
+
+                    // Reduced flame effect
+                    if (crazyMeter > 70) {
+                        ctx.fillStyle = `hsla(${Math.random() * 30 + 300}, 100%, 70%, 0.8)`; // More transparent
+                        ctx.beginPath();
+                        ctx.arc(this.x + this.width/2, this.y + this.height + Math.random()*3, this.width*0.5, 0, Math.PI*2);
+                        ctx.fill();
+                    }
+                    ctx.restore();
+                },
+                update() {
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    if (this.y < -this.height || this.y > CANVAS_HEIGHT || this.x < -this.width || this.x > CANVAS_WIDTH) {
+                        this.remove = true;
+                    }
+                }
+            });
+        }
+
+        // Update enemies
+        function updateEnemies() {
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const enemy = enemies[i];
+                enemy.update();
+                enemy.draw();
+                if (enemy.remove) { enemies.splice(i, 1); }
+            }
+        }
+
+        // Update projectiles
+        function updateProjectiles() {
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const p = projectiles[i];
+                p.update();
+                p.draw();
+                if (p.remove) { projectiles.splice(i, 1); }
+            }
+        }
+
+        // Update explosions (Optimized: no shadows for particles)
+        function updateExplosions() {
+            for (let i = explosions.length - 1; i >= 0; i--) {
+                const exp = explosions[i];
+                exp.update();
+                exp.draw(); // draw method itself is optimized
+                if (exp.remove) { explosions.splice(i, 1); }
+            }
+        }
+
+        // Update powerups
+        function updatePowerups() {
+            for (let i = powerups.length - 1; i >= 0; i--) {
+                const powerup = powerups[i];
+                powerup.update();
+                powerup.draw();
+                if (powerup.remove) { powerups.splice(i, 1); }
+            }
+        }
+
+        // Update craziness visual effects
+        function updateCrazinessEffects() {
+             // Add fewer effects
+            if (crazyMeter > 40 && Math.random() < crazyMeter / 2500) {
+                 crazinessEffects.push({
+                     x: Math.random() * CANVAS_WIDTH, y: Math.random() * CANVAS_HEIGHT,
+                     size: Math.random() * 60 + 15, // Smaller max size
+                     color: `hsla(${Math.random() * 360}, 100%, 70%, ${0.05 + Math.random()*0.2})`, // More transparent
+                     life: 15 + Math.random() * 30, // Shorter life
+                     type: Math.random() > 0.5 ? 'circle' : 'rect'
+                 });
+             }
+
+            for (let i = crazinessEffects.length - 1; i >= 0; i--) {
+                const effect = crazinessEffects[i];
+                effect.life--;
+
+                if (effect.life <= 0) {
+                    crazinessEffects.splice(i, 1);
+                    continue;
+                }
+
+                ctx.save();
+                ctx.globalAlpha = (effect.life / (15 + 30)) * 0.6; // Fade out faster
+                ctx.fillStyle = effect.color;
+                ctx.beginPath();
+                if (effect.type === 'circle') {
+                    ctx.arc(effect.x, effect.y, effect.size * (1 - effect.life / 45), 0, Math.PI * 2);
+                } else {
+                    const w = effect.size * (1 - effect.life / 45);
+                    ctx.fillRect(effect.x - w/2, effect.y - w/2, w, w);
+                }
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // Apply crazy visual effects to the whole canvas context
+        function applyCrazyEffects() {
+            if (crazyMeter < 40) { // Increased threshold
+                 // ctx.setTransform should be called at end of loop anyway
+                return;
+            }
+
+            // Screen Shake (less frequent)
+            if (crazyMeter > 60 && Math.random() < 0.03) { // Reduced probability
+                const shakeIntensity = crazyMeter / 20; // Reduced intensity
+                const tx = (Math.random() - 0.5) * shakeIntensity;
+                const ty = (Math.random() - 0.5) * shakeIntensity;
+                ctx.translate(tx, ty); // Remember this MUST be reset by setTransform
+            }
+
+            // Color Tint / Filter (more subtle)
+            if (crazyMeter > 75) {
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                ctx.fillStyle = `hsla(${(Date.now() / 35) % 360}, 100%, 50%, 0.03)`; // More subtle alpha
+                ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+                ctx.restore();
+            }
+
+            // Scanlines (less frequent)
+             if (crazyMeter > 90 && Math.random() < 0.05) { // Higher threshold, lower chance
+                 ctx.save();
+                 ctx.fillStyle = 'rgba(0, 0, 0, 0.08)'; // More subtle lines
+                 for (let y = 0; y < CANVAS_HEIGHT; y += 5) { // Wider spacing
+                     ctx.fillRect(0, y, CANVAS_WIDTH, 2);
+                 }
+                 ctx.restore();
+             }
+        }
+
+        // Check for collisions
+        function checkCollisions() {
+            // Projectile - Enemy collisions
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const p = projectiles[i];
+                let projectileRemoved = false;
+
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    const enemy = enemies[j];
+                    if (checkCollision(p, enemy)) {
+                        enemy.hp -= p.damage;
+                        createExplosion(p.x + p.width / 2, p.y, '#eee', 2, 3); // Smaller hit spark
+
+                        if (!projectileRemoved) {
+                            projectiles.splice(i, 1);
+                            projectileRemoved = true;
+                        }
+
+                        if (enemy.hp <= 0) {
+                            const scoreGained = Math.floor(50 + enemy.width + enemy.maxHp * 8); // Slightly less score per HP
+                            score += scoreGained;
+                            updateScore();
+                            increaseCrazyMeter(0.8 + enemy.maxHp / 6); // Slightly less crazy gain
+
+                            createExplosion(
+                                enemy.x + enemy.width / 2, enemy.y + enemy.height / 2,
+                                enemy.color, enemy.width / 1.8, // Smaller explosion base size
+                                12 + Math.floor(enemy.width / 4) // Fewer particles
+                            );
+                            playSound('explosion');
+                            enemies.splice(j, 1);
+                        }
+                        // Since projectile removed, break inner loop
+                        break;
+                    }
+                }
+            }
+
+            // Player - Enemy collisions
+             if (!player.isInvincible) {
+                 for (let i = enemies.length - 1; i >= 0; i--) {
+                     const enemy = enemies[i];
+                     if (checkCollision(player, enemy)) {
+                         lives--;
+                         updateLives();
+                         increaseCrazyMeter(4); // Less crazy gain on hit
+
+                         createExplosion(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, enemy.color, enemy.width);
+                         createExplosion(player.x, player.y, player.color, player.width);
+                         playSound('explosion');
+                         enemies.splice(i, 1);
+
+                         if (lives <= 0) {
+                             gameOver();
+                             return; // Exit collision check immediately
+                         } else {
+                             player.activateInvincibility(1500); // 1.5 sec invincibility
+                         }
+                         break; // Stop checking enemies after player hit
+                     }
+                 }
+             }
+
+            // Player - Powerup collisions
+            for (let i = powerups.length - 1; i >= 0; i--) {
+                const powerup = powerups[i];
+                if (checkCollision(player, powerup)) {
+                    switch(powerup.type) {
+                         case 0: if (lives < 5) { lives++; updateLives(); } break;
+                         case 1: score += 500 + Math.floor(crazyMeter * 4); updateScore(); break; // Slightly less score boost
+                         case 2: increaseCrazyMeter(-20); break; // Less reduction
+                         case 3: player.activateInvincibility(5000); break;
+                         case 4:
+                             const originalDelay = player.shootDelay;
+                             player.shootDelay = Math.max(60, player.shootDelay / 1.8); // Less drastic increase
+                             setTimeout(() => { player.shootDelay = originalDelay; }, 7000); // Shorter duration
+                             break;
+                         case 5: // Bomb
+                            // Only destroy enemies on screen for performance? Or keep simple? Keep simple for now.
+                             for(let j=enemies.length-1; j>=0; j--) {
+                                 const enemy = enemies[j];
+                                 createExplosion(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, enemy.color, enemy.width, 15); // Fewer particles
+                                 score += 30; // Less score per bomb kill
+                             }
+                             enemies = [];
+                             updateScore();
+                             playSound('explosion');
+                             // Visual flash effect is potentially costly, maybe remove or make simpler
+                             // ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                             // ctx.fillRect(0,0,CANVAS_WIDTH, CANVAS_HEIGHT);
+                             break;
+                     }
+                    playSound('powerup');
+                    powerups.splice(i, 1);
+                    break; // Stop checking powerups after collision
+                }
+            }
+        }
+
+        // Check collision between two objects (AABB)
+        // Assumes obj1 (player/projectile) has x,y as center, obj2 (enemy/powerup) has x,y as top-left
+        function checkCollision(obj1, obj2) {
+             const obj1Left = obj1.x - obj1.width / 2;
+             const obj1Right = obj1.x + obj1.width / 2;
+             const obj1Top = obj1.y - obj1.height / 2;
+             const obj1Bottom = obj1.y + obj1.height / 2;
+
+             const obj2Left = obj2.x;
+             const obj2Right = obj2.x + obj2.width;
+             const obj2Top = obj2.y;
+             const obj2Bottom = obj2.y + obj2.height;
+
+             return obj1Right > obj2Left && obj1Left < obj2Right &&
+                    obj1Bottom > obj2Top && obj1Top < obj2Bottom;
+        }
+
+        // Create explosion particles (Optimized: no shadow, FIXED radius)
+        function createExplosion(x, y, color, size = 10, count = 15) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 1 + Math.random() * (size / 6); // Less speed variation
+                const particleSize = 1.5 + Math.random() * (size / 10); // Smaller particles
+                const lifetime = 25 + Math.random() * 40; // Shorter max lifetime
+
+                explosions.push({
+                    x: x, y: y,
+                    vx: Math.cos(angle) * speed * (0.6 + Math.random()*0.8),
+                    vy: Math.sin(angle) * speed * (0.6 + Math.random()*0.8),
+                    size: particleSize,
+                    color: color || `hsl(${Math.random() * 360}, 100%, 70%)`,
+                    life: lifetime, maxLife: lifetime,
+                    gravity: 0.08 + Math.random() * 0.08, // Less gravity
+                    friction: 0.97, // More friction
+                    draw() {
+                        // OPTIMIZED: No shadow here
+                        ctx.save();
+                        ctx.globalAlpha = this.life / this.maxLife;
+                        ctx.fillStyle = this.color;
+                        ctx.beginPath();
+                        // --- FIX APPLIED HERE --- ensure radius is non-negative
+                        const radius = Math.max(0, this.size * (this.life / this.maxLife));
+                        ctx.arc(this.x, this.y, radius, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.restore();
+                    },
+                    update() {
+                        this.vx *= this.friction;
+                        this.vy *= this.friction;
+                        this.vy += this.gravity;
+                        this.x += this.vx;
+                        this.y += this.vy;
+                        this.life--;
+                        if (this.life <= 0) { this.remove = true; }
+                    }
+                });
+            }
+        }
+
+        // Increase/decrease crazy meter
+        function increaseCrazyMeter(amount) {
+            const oldCrazy = crazyMeter;
+            crazyMeter = Math.max(0, Math.min(100, crazyMeter + amount));
+
+            // Only update meter display if value actually changed significantly
+            if (Math.floor(crazyMeter) !== Math.floor(oldCrazy)) {
+                updateCrazyMeter(); // Update the throttled display
+
+                // Regenerate background less often
+                if (amount > 0 && Math.floor(crazyMeter / 15) !== Math.floor(oldCrazy / 15)) { // Check every 15%
+                    createBackgroundPattern();
+                }
+            }
+
+
+            // Handle rainbow background (keep this logic)
+            if (crazyMeter > 75 && !document.body.classList.contains('rainbow-bg')) {
+                document.body.classList.add('rainbow-bg');
+            } else if (crazyMeter <= 75 && document.body.classList.contains('rainbow-bg')) {
+                document.body.classList.remove('rainbow-bg');
+                 document.body.style.background = '#111'; // Ensure background resets
+            }
+        }
+
+        // Update score display (Optimized: Throttle DOM update)
+        function updateScore() {
+             if (score !== lastDisplayedScore && scoreDisplay) { // Only update if value changed
+                scoreDisplay.textContent = score;
+                lastDisplayedScore = score;
+             }
+        }
+
+        // Update lives display (Optimized: Throttle DOM update)
+        function updateLives() {
+             if (lives !== lastDisplayedLives && livesDisplay) { // Only update if value changed
+                livesDisplay.textContent = lives > 0 ? '❤️'.repeat(lives) : '💔';
+                lastDisplayedLives = lives;
+             }
+        }
+
+        // Update crazy meter display (Optimized: Throttle DOM update)
+        function updateCrazyMeter() {
+            const roundedMeter = Math.floor(crazyMeter);
+            if (roundedMeter !== lastDisplayedCrazy && crazyMeterDisplay) { // Only update if value changed
+                crazyMeterDisplay.textContent = `${roundedMeter}%`;
+                const hue = 120 - roundedMeter * 1.2;
+                crazyMeterDisplay.style.color = `hsl(${hue}, 100%, 50%)`;
+
+                if (roundedMeter > 50) {
+                    crazyMeterDisplay.classList.add('neon-text');
+                    // Make sure neon-text style applies the right shadow or color is enough
+                } else {
+                    crazyMeterDisplay.classList.remove('neon-text');
+                    crazyMeterDisplay.style.textShadow = 'none';
+                }
+                lastDisplayedCrazy = roundedMeter;
+            }
+        }
+
+        // Game over
+        function gameOver() {
+            console.log("GAME OVER!");
+            gameRunning = false;
+            if (animationFrameId) { // Stop the game loop
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+
+            if(finalScore) finalScore.textContent = score; // Update final UI elements
+            if(crazyLevel) crazyLevel.textContent = `${Math.floor(crazyMeter)}%`;
+            if(gameOverScreen) gameOverScreen.classList.remove('hidden');
+
+            createExplosion(player.x, player.y, player.color, 80, 100); // Fewer particles in final explosion
+            playSound('gameover');
+
+            if (document.body.classList.contains('rainbow-bg')) {
+                document.body.classList.remove('rainbow-bg');
+                document.body.style.background = '#111';
+            }
+            // Maybe clear remaining enemies/projectiles?
+             enemies = []; projectiles = []; explosions = []; powerups = []; crazinessEffects = [];
+        }
+
+        // Restart game
+        function restartGame() {
+            console.log("Redémarrage du jeu...");
+            // startGame() handles resetting state and hiding screens
+            startGame();
+        }
+
+        // Simple sound effects using Web Audio API
+        function playSound(type) {
+             // Ensure audioContext is valid and running
+             if (!audioContext || typeof audioContext.createOscillator !== 'function' || audioContext.state !== 'running') {
+                 // console.warn("AudioContext non prêt pour jouer le son:", type);
+                 return;
+             }
+
+            const oscillator = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            oscillator.connect(gain);
+            gain.connect(audioContext.destination);
+
+            let freq = 440, duration = 0.1, vol = 0.5, oscType = 'sine', freqEnd = freq;
+
+            try {
+                switch(type) {
+                    case 'shoot':
+                        freq = crazyMeter < 30 ? 880 : crazyMeter < 70 ? 660 + Math.random() * 440 : 440 + Math.random() * 1000; // Wider random range
+                        freqEnd = freq * 0.85; // Less pitch drop
+                        duration = 0.04 + crazyMeter / 2000; // Shorter base duration
+                        vol = 0.25 + crazyMeter / 350; // Quieter base volume
+                        oscType = crazyMeter < 50 ? 'triangle' : 'sawtooth';
+                        break;
+                    case 'explosion':
+                        // Using noise buffer for explosion is often better but more complex.
+                        // Sticking to oscillator for simplicity:
+                        freq = 40 + Math.random() * 80; // Lower base freq
+                        freqEnd = freq / 5;
+                        duration = 0.25 + Math.random() * 0.3; // Shorter duration
+                        vol = 0.5 + Math.random() * 0.2; // Quieter max volume
+                        oscType = 'sine';
+                        break;
+                    case 'powerup':
+                        freq = [659.25, 783.99, 987.77][Math.floor(Math.random() * 3)];
+                        freqEnd = freq * 1.15; // Less pitch increase
+                        duration = 0.2; // Shorter
+                        vol = 0.6; // Quieter
+                        oscType = 'sine';
+                        gain.gain.setValueAtTime(vol * 0.5, audioContext.currentTime);
+                        gain.gain.linearRampToValueAtTime(vol, audioContext.currentTime + duration * 0.2);
+                        // Use standard fade out below instead of custom ramps here
+                        break;
+                    case 'gameover':
+                        freq = 200; // Lower start
+                        freqEnd = 50; // Lower end
+                        duration = 1.2; // Shorter
+                        vol = 0.7; // Quieter
+                        oscType = 'sawtooth';
+                        break;
+                }
+
+                oscillator.type = oscType;
+                oscillator.frequency.setValueAtTime(freq, audioContext.currentTime);
+                if (freq !== freqEnd) {
+                    oscillator.frequency.exponentialRampToValueAtTime(freqEnd > 0 ? freqEnd : 0.001, audioContext.currentTime + duration * 0.8); // Ensure target > 0
+                }
+
+                // Apply gain envelope for most sounds (except powerup which had custom ramp)
+                if (type !== 'powerup') {
+                    gain.gain.setValueAtTime(vol, audioContext.currentTime);
+                }
+                 gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration); // Standard fade out
+
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + duration);
+
+            } catch (e) {
+                console.error("Erreur lors de la lecture du son:", type, e);
+                // Attempt cleanup
+                try { oscillator.disconnect(); gain.disconnect(); } catch (cleanupErr) {}
+            }
+        }
+
+        // Start initialization on load
+        init();
+
+    </script>
+</body>
+</html>

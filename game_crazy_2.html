@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crazy Chaos Carnage 2: Total Madness (Corrigé)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bungee+Shade&family=Press+Start+2P&display=swap');
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Press Start 2P', cursive;
+            background: #111;
+            color: white;
+        }
+
+        #gameCanvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        #uiOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none; /* Ne capture pas les clics par défaut */
+        }
+        /* Rendre les éléments interactifs de l'UI cliquables */
+         #startScreen, #gameOverScreen, #levelUpScreen, #abilityBar, .pixel-box, button { /* Ajout de button ici */
+             pointer-events: auto; /* Permet les clics sur ces conteneurs et leur contenu */
+         }
+
+        .neon-text {
+            text-shadow: 0 0 5px #ff00ff, 0 0 10px #ff00ff, 0 0 20px #ff00ff;
+        }
+
+        .rainbow-text {
+            background: linear-gradient(90deg, #ff0000, #ff7700, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            text-shadow: none;
+             animation: rainbow-text-anim 4s linear infinite;
+             background-size: 200% auto;
+        }
+         @keyframes rainbow-text-anim {
+             0%{background-position:0% 50%}
+             50%{background-position:100% 50%}
+             100%{background-position:0% 50%}
+         }
+
+        .glitch-text {
+            position: relative;
+        }
+
+        .glitch-text::before, .glitch-text::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+             overflow: hidden; /* Empêche le texte glitch de déborder */
+        }
+
+        .glitch-text::before {
+            color: #0ff;
+            z-index: -1;
+            animation: glitch-effect 3s infinite linear alternate-reverse; /* Ajout linear alternate-reverse */
+        }
+
+        .glitch-text::after {
+            color: #f0f;
+            z-index: -2;
+            animation: glitch-effect 2s infinite linear alternate; /* Ajout linear alternate */
+        }
+
+        @keyframes glitch-effect { /* Simplifié */
+             0% { clip-path: polygon(0 0, 100% 0, 100% 30%, 0 30%); transform: translate(-3px, 2px); }
+             25% { clip-path: polygon(0 40%, 100% 40%, 100% 60%, 0 60%); transform: translate(2px, -1px); }
+             50% { clip-path: polygon(0 70%, 100% 70%, 100% 100%, 0 100%); transform: translate(-2px, 3px); }
+             75% { clip-path: polygon(0 20%, 100% 20%, 100% 50%, 0 50%); transform: translate(3px, -2px); }
+             100% { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); transform: translate(0, 0); }
+        }
+
+        .pixel-box {
+            border: 4px solid #fff;
+            box-shadow: 8px 8px 0 rgba(255,255,255,0.2);
+            position: relative;
+            background: rgba(10,10,20,0.8); /* Légèrement moins transparent */
+        }
+
+        .pixel-box::after {
+            content: '';
+            position: absolute;
+            top: -12px;
+            left: -12px;
+            right: -12px;
+            bottom: -12px;
+            border: 4px solid #f0f;
+            z-index: -1;
+            opacity: 0.5;
+             pointer-events: none; /* La déco ne doit pas bloquer les clics */
+        }
+
+        .button-crazy {
+            background: #ff00ff;
+            color: #fff;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease; /* Ajout ease */
+            font-family: 'Press Start 2P', cursive;
+            box-shadow: 0 0 10px #ff00ff, 0 0 20px #ff00ff;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+             z-index: 5; /* Pour être sûr qu'il est cliquable */
+             display: inline-block; /* Pour s'assurer que padding/etc fonctionne bien */
+        }
+
+        .button-crazy:hover {
+            background: #00ffff;
+            box-shadow: 0 0 20px #00ffff, 0 0 40px #00ffff;
+            transform: translateY(-5px);
+        }
+
+        .button-crazy::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.3), transparent);
+            transform: rotate(45deg);
+            transition: all 0.5s;
+             pointer-events: none; /* La déco ne doit pas bloquer les clics */
+        }
+
+        .button-crazy:hover::before {
+            left: 100%;
+        }
+
+        .crazy-particle {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 3;
+        }
+
+        .rainbow-bg {
+            animation: rainbow-bg 5s linear infinite;
+            background-size: 400% 400%;
+            background-image: linear-gradient(-45deg, #ff0000, #ff7700, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff);
+        }
+
+        @keyframes rainbow-bg {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .speech-bubble {
+            position: absolute; /* Sera ajouté dynamiquement au body */
+            background: white;
+            color: black;
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            max-width: 250px; /* Un peu plus large */
+            pointer-events: none;
+            animation: float-up 3s linear forwards; /* linear */
+            z-index: 100; /* Au dessus de tout */
+            border: 2px solid black;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
+             text-align: center;
+        }
+         .speech-bubble::after { /* Petit triangle */
+             content: '';
+             position: absolute;
+             bottom: -12px; /* Ajusté pour la bordure */
+             left: 50%;
+             transform: translateX(-50%);
+             width: 0;
+             height: 0;
+             border-left: 10px solid transparent;
+             border-right: 10px solid transparent;
+             border-top: 10px solid white; /* Pointe vers le bas */
+             filter: drop-shadow(0 1px 0 black); /* Ombre légère sur le triangle */
+         }
+
+        @keyframes float-up {
+            0% { opacity: 1; transform: translateY(0) translate(-50%, -100%); } /* Ajuster transform initial */
+            80% { opacity: 1; transform: translateY(-80px) translate(-50%, -100%);}
+            100% { opacity: 0; transform: translateY(-100px) translate(-50%, -100%); }
+        }
+
+
+        /* Barre de vie Boss */
+        .boss-health-bar-bg {
+             height: 24px; width: 100%; background: #333; border: 2px solid white; padding: 2px; box-sizing: border-box;
+         }
+        .boss-health-bar {
+            height: 100%; width: 100%; background: linear-gradient(to right, #ff0000, #ff7700, #ffff00);
+            position: relative; overflow: hidden; transition: width 0.5s ease-out;
+        }
+        .boss-health-bar::after { /* Effet brillance */
+            content: ''; position: absolute; top: 0; left: -100%; width: 50%; height: 100%;
+            background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0) 100%);
+            transform: skewX(-25deg); animation: health-bar-shine 2s linear infinite;
+        }
+        @keyframes health-bar-shine { 0% { left: -100%; } 100% { left: 150%; } }
+
+        /* Cooldown Capacités */
+        .ability-cooldown { position: relative; filter: grayscale(80%); cursor: not-allowed; }
+        .ability-cooldown::after { /* Overlay sombre */
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6); pointer-events: none;
+        }
+
+        /* Crazy mode distortions */
+        .crazy-distort { filter: url('#crazy-distortion'); }
+        .time-warp-effect { filter: hue-rotate(180deg) blur(1px); transition: filter 0.5s; }
+
+         /* Classes utilitaires */
+         .hidden { display: none !important; } /* Pour cacher les éléments */
+
+    </style>
+</head>
+<body class="h-screen w-full flex items-center justify-center relative">
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="uiOverlay" class="flex flex-col items-center justify-between p-6">
+        <div class="w-full flex justify-between items-start z-10">
+            <div class="pixel-box p-3">
+                <h2 class="rainbow-text">SCORE: <span id="scoreDisplay">0</span></h2>
+            </div>
+            <div class="pixel-box p-3">
+                <h2 class="neon-text">CRAZY: <span id="crazyMeter">0%</span></h2>
+            </div>
+            <div class="pixel-box p-3">
+                <h2 class="text-yellow-300">LIVES: <span id="livesDisplay">❤️❤️❤️</span></h2>
+            </div>
+        </div>
+
+        <div id="bossHealthContainer" class="hidden w-3/4 mx-auto mt-4 absolute top-16 left-0 right-0 z-10">
+             <div class="pixel-box p-2 flex flex-col items-center">
+                 <h2 class="text-2xl mb-2 rainbow-text" id="bossName">NOM DU BOSS</h2>
+                 <div class="boss-health-bar-bg">
+                     <div id="bossHealthBar" class="boss-health-bar"></div>
+                 </div>
+                 <div class="text-sm mt-2" id="bossPhaseDisplay">PHASE 1</div>
+             </div>
+        </div>
+
+        <div id="abilityBar" class="hidden fixed bottom-4 left-4 right-4 flex justify-center gap-4 z-10">
+             <div id="abilityContainer1" class="pixel-box p-3 flex flex-col items-center" style="display: none;">
+                 <button id="ability1" class="button-crazy px-4 py-2 text-sm">SUPER BLAST</button>
+                 <div class="mt-1 text-xs text-center">[1] - CD: <span id="cooldown1">READY</span></div>
+             </div>
+             <div id="abilityContainer2" class="pixel-box p-3 flex flex-col items-center" style="display: none;">
+                 <button id="ability2" class="button-crazy px-4 py-2 text-sm">TIME WARP</button>
+                 <div class="mt-1 text-xs text-center">[2] - CD: <span id="cooldown2">READY</span></div>
+             </div>
+             <div id="abilityContainer3" class="pixel-box p-3 flex flex-col items-center" style="display: none;">
+                 <button id="ability3" class="button-crazy px-4 py-2 text-sm">CHAOS ZONE</button>
+                 <div class="mt-1 text-xs text-center">[3] - CD: <span id="cooldown3">READY</span></div>
+             </div>
+        </div>
+
+        <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+             <div id="startScreen" class="start-screen pixel-box p-10 flex flex-col items-center max-w-2xl text-center pointer-events-auto">
+                 <h1 class="glitch-text text-4xl md:text-6xl font-bold mb-6" data-text="CRAZY CHAOS CARNAGE 2">CRAZY CHAOS CARNAGE 2</h1>
+                 <p class="text-base md:text-xl mb-8 text-center">La folie absolue continue!<br>
+                 Nouvelles capacités - Ennemis encore plus fous - Boss délirants!<br>
+                 Tirez avec ESPACE - Capacités spéciales avec 1/2/3<br>
+                 Survivez à l'apocalypse chaotique!</p>
+
+                 <div class="flex flex-col sm:flex-row gap-4 mb-4">
+                     <button id="normalMode" class="button-crazy text-base md:text-lg">MODE NORMAL</button>
+                     <button id="crazyMode" class="button-crazy text-base md:text-lg">MODE FOLIE</button>
+                 </div>
+
+                 <div class="pixel-box p-4 mt-4 w-full max-w-xs">
+                     <h3 class="text-base md:text-lg mb-2">Records</h3>
+                     <p class="text-sm md:text-base">Normal: <span id="highScoreNormal">0</span></p>
+                     <p class="text-sm md:text-base">Folie: <span id="highScoreCrazy">0</span></p>
+                 </div>
+             </div>
+
+             <div id="gameOverScreen" class="hidden game-over-screen pixel-box p-10 flex flex-col items-center max-w-2xl text-center pointer-events-auto">
+                 <h1 class="text-4xl md:text-6xl font-bold mb-6 text-red-400 neon-text" id="gameOverTitle">VOUS AVEZ PERDU!</h1>
+                 <p class="text-xl md:text-2xl mb-4 rainbow-text">Score final: <span id="finalScore">0</span></p>
+                 <p class="text-base md:text-xl mb-8">Niveau de folie atteint: <span id="crazyLevel">0%</span></p>
+                 <div class="w-full flex flex-col sm:flex-row gap-4 justify-center">
+                     <button id="restartButton" class="button-crazy text-base md:text-lg">
+                         REESSAYER
+                     </button>
+                     <button id="mainMenuButton" class="button-crazy text-base md:text-lg">
+                         MENU PRINCIPAL
+                     </button>
+                 </div>
+             </div>
+
+             <div id="levelUpScreen" class="hidden level-up-screen pixel-box p-10 text-center max-w-lg bg-black pointer-events-auto">
+                 <h2 class="text-3xl md:text-4xl mb-6 rainbow-text">LEVEL UP!</h2>
+                 <p class="text-base md:text-xl mb-4">Vous avez débloqué une nouvelle capacité:</p>
+                 <h3 class="text-xl md:text-2xl neon-text mb-6" id="newAbilityName">NOM CAPACITE</h3>
+                 <p class="mb-4 text-sm md:text-base" id="abilityDescription">Description de la capacité...</p>
+                 <button id="continueButton" class="button-crazy text-base md:text-lg">CONTINUER LA FOLIE</button>
+             </div>
+        </div>
+
+    </div> <svg width="0" height="0" style="position:absolute;">
+        <filter id="crazy-distortion">
+            <feTurbulence type="fractalNoise" baseFrequency="0.02 0.04" numOctaves="3" result="noise" seed="0">
+                 <animate attributeName="baseFrequency" dur="0.5s" values="0.02 0.04; 0.04 0.08; 0.01 0.05; 0.03 0.06; 0.02 0.04" repeatCount="indefinite" />
+                 <animate attributeName="seed" dur="0.3s" values="0;10;5;20;0" repeatCount="indefinite" />
+            </feTurbulence>
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="10" xChannelSelector="R" yChannelSelector="G"/>
+        </filter>
+    </svg>
+
+
+    <script>
+        // --- Constants ---
+        const CANVAS_WIDTH = window.innerWidth;
+        const CANVAS_HEIGHT = window.innerHeight;
+        const PLAYER_SPEED = 7;
+        const CRAZY_INCREMENT = 0.2;
+        const BASE_PLAYER_LIVES = 5;
+        const CRAZY_MODE_PLAYER_LIVES = 3;
+        const LEVEL_UP_SCORE_BASE = 1500; // Score nécessaire pour le niveau 2
+        const LEVEL_UP_SCORE_INCREMENT = 1.5; // Multiplicateur pour niveaux suivants
+        const BOSS_SCORE_INTERVAL = 5000; // Un boss peut apparaître tous les X points
+        const BOSS_SPAWN_CHANCE = 0.35; // Augmenté un peu
+        const PLAYER_INVINCIBILITY_DURATION = 1500; // ms après avoir été touché
+        const SHIELD_POWERUP_RADIUS = 50;
+        const POWERUP_DURATION_DEFAULT = 8000; // 8 secondes pour la plupart des powerups temporaires
+
+        // --- Game State Variables ---
+        let gameRunning = false;
+        let animationFrameId = null;
+        let score = 0;
+        let lives = BASE_PLAYER_LIVES;
+        let crazyMeter = 0;
+        let level = 1;
+        let scoreNeededForNextLevel = LEVEL_UP_SCORE_BASE;
+        let player; // Sera défini dans init()
+        let enemies = [];
+        let projectiles = [];
+        let explosions = [];
+        let powerups = [];
+        let backgrounds = []; // Sera rempli par createBackgroundPattern
+        let crazinessEffects = [];
+        let speechBubbles = [];
+        let boss = null;
+        let bossActive = false;
+        let keys = {};
+        let gameMode = 'normal';
+        let highScores = { normal: 0, crazy: 0 };
+        let audioContext; // Initialisé au premier clic/input utilisateur
+        let lastTimestamp = 0; // Pour calcul deltaTime
+        let bossCheckDoneForScore = 0; // Pour éviter de vérifier le spawn du boss à chaque frame dans un intervalle de score
+
+        // --- Abilities Definition ---
+        const abilities = {
+            superBlast: {
+                name: "SUPER BLAST", description: "Détruit les ennemis non-boss à l'écran.", cooldown: 30000, unlockedAt: 1, ready: true, lastUsed: 0, timerId: null, elementId: 'ability1', containerId: 'abilityContainer1', cooldownElementId: 'cooldown1', sound: 'superBlast'
+            },
+            timeWarp: {
+                name: "TIME WARP", description: "Ralentit le temps (sauf boss/joueur) pendant 5 sec.", cooldown: 45000, unlockedAt: 3, ready: true, lastUsed: 0, timerId: null, activeTimerId: null, active: false, elementId: 'ability2', containerId: 'abilityContainer2', cooldownElementId: 'cooldown2', sound: 'timeWarp'
+            },
+            chaosZone: {
+                name: "CHAOS ZONE", description: "Convertit la folie en score et annule les projectiles ennemis pendant 10 sec.", cooldown: 75000, unlockedAt: 5, ready: true, lastUsed: 0, timerId: null, activeTimerId: null, active: false, particleId: null, elementId: 'ability3', containerId: 'abilityContainer3', cooldownElementId: 'cooldown3', sound: 'chaosZone'
+            }
+        };
+
+        // --- DOM Elements (Initialisés dans init) ---
+        let canvas, ctx, scoreDisplay, livesDisplay, crazyMeterDisplay, startScreen, gameOverScreen,
+            startButtonNormal, startButtonCrazy, restartButton, mainMenuButton, finalScore, crazyLevel,
+            bossHealthContainer, bossHealthBar, bossName, bossPhaseDisplay, abilityBar,
+            levelUpScreen, newAbilityName, abilityDescription, continueButton,
+            highScoreNormal, highScoreCrazy, gameOverTitle;
+
+
+        // --- Utility Functions (including missing ones) ---
+
+        function createBackgroundPattern() {
+            // console.log("Creating/Refreshing background pattern..."); // Débogage (commenté)
+            backgrounds = []; // Clear any existing background elements
+            const numStars = 100 + Math.floor(crazyMeter * 1.5); // Example: More stars if crazier
+
+            for (let i = 0; i < numStars; i++) {
+                // Create a star object similar to how updateBackground resets them
+                backgrounds.push({
+                    x: Math.random() * CANVAS_WIDTH,
+                    y: Math.random() * CANVAS_HEIGHT, // Start stars randomly positioned
+                    size: Math.random() * 2 + 0.5, // Small star sizes
+                    speed: (Math.random() * 2 + 0.5 + crazyMeter / 30) * (gameMode === 'crazy' ? 1.2 : 1),
+                    color: `hsl(${Math.random() * 360}, 100%, ${60 + Math.random()*40}%)`
+                });
+            }
+             // console.log(`Generated ${backgrounds.length} background elements.`); // Débogage (commenté)
+        }
+
+        // ADDED: Function to actually draw the background
+        function drawBackground() {
+            if (!ctx) return; // Safety check
+            ctx.save();
+            backgrounds.forEach(star => {
+                ctx.fillStyle = star.color;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.restore();
+        }
+
+        // --- Initialization ---
+        function init() {
+            console.log("CCC2 Initialisation...");
+            // Get DOM elements & check existence
+            canvas = document.getElementById('gameCanvas'); ctx = canvas ? canvas.getContext('2d') : null;
+            scoreDisplay = document.getElementById('scoreDisplay'); livesDisplay = document.getElementById('livesDisplay');
+            crazyMeterDisplay = document.getElementById('crazyMeter'); startScreen = document.getElementById('startScreen');
+            gameOverScreen = document.getElementById('gameOverScreen'); startButtonNormal = document.getElementById('normalMode');
+            startButtonCrazy = document.getElementById('crazyMode'); restartButton = document.getElementById('restartButton');
+            mainMenuButton = document.getElementById('mainMenuButton'); finalScore = document.getElementById('finalScore');
+            crazyLevel = document.getElementById('crazyLevel'); bossHealthContainer = document.getElementById('bossHealthContainer');
+            bossHealthBar = document.getElementById('bossHealthBar'); bossName = document.getElementById('bossName');
+            bossPhaseDisplay = document.getElementById('bossPhaseDisplay'); abilityBar = document.getElementById('abilityBar');
+            levelUpScreen = document.getElementById('levelUpScreen'); newAbilityName = document.getElementById('newAbilityName');
+            abilityDescription = document.getElementById('abilityDescription'); continueButton = document.getElementById('continueButton');
+            highScoreNormal = document.getElementById('highScoreNormal'); highScoreCrazy = document.getElementById('highScoreCrazy');
+            gameOverTitle = document.getElementById('gameOverTitle');
+
+            // Check crucial elements
+            if (!canvas || !ctx) { console.error("Canvas ou contexte 2D manquant!"); alert("Erreur: Impossible de démarrer le jeu."); return; }
+            if (!startScreen || !gameOverScreen || !startButtonNormal || !startButtonCrazy || !restartButton || !mainMenuButton || !continueButton) { console.error("Un ou plusieurs écrans/boutons principaux manquants!"); }
+
+            // Get ability elements
+            Object.keys(abilities).forEach(key => {
+                const ability = abilities[key];
+                ability.buttonElement = document.getElementById(ability.elementId);
+                ability.containerElement = document.getElementById(ability.containerId);
+                ability.cooldownElement = document.getElementById(ability.cooldownElementId);
+                if (!ability.buttonElement || !ability.containerElement || !ability.cooldownElement) {
+                    console.warn(`Éléments manquants pour l'abilité: ${ability.name}`);
+                }
+            });
+
+            // Set canvas size
+            canvas.width = CANVAS_WIDTH; canvas.height = CANVAS_HEIGHT;
+
+            // Load high scores
+            loadHighScores();
+
+            // --- Player Object Definition ---
+            player = {
+                x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT - 100, width: 30, height: 40, visualWidth: 40, visualHeight: 40,
+                speed: PLAYER_SPEED, color: '#00ffff', lastShotTime: 0, shootDelay: 250, isInvincible: false, invincibilityTimer: 0,
+                shieldActive: false, shieldRadius: SHIELD_POWERUP_RADIUS, homingShots: false, homingTimer: 0,
+                scoreMultiplier: 1, scoreMultiplierTimer: 0, rapidFire: false, rapidFireTimer: 0, tripleShots: false, tripleShotsTimer: 0,
+                draw() { /* Copié/collé de la pensée précédente */
+                    ctx.save();
+                    if (this.shieldActive) {
+                        ctx.beginPath(); ctx.arc(this.x, this.y, this.shieldRadius, 0, Math.PI * 2);
+                        ctx.fillStyle = `rgba(0, 100, 255, ${0.3 + Math.sin(Date.now() / 150) * 0.15})`; ctx.fill();
+                        ctx.strokeStyle = '#00ccff'; ctx.lineWidth = 3; ctx.stroke();
+                    }
+                    ctx.fillStyle = this.isInvincible ? `rgba(0, 255, 255, ${0.5 + Math.sin(Date.now()/50)*0.2})` : this.color;
+                    const drawX = this.x - this.visualWidth / 2; const drawY = this.y - this.visualHeight / 2;
+                    ctx.shadowColor = this.color; ctx.shadowBlur = 15;
+                    ctx.beginPath();
+                     if (crazyMeter < 50) { ctx.moveTo(this.x, drawY); ctx.lineTo(drawX + this.visualWidth, drawY + this.visualHeight); ctx.lineTo(drawX, drawY + this.visualHeight); }
+                     else { const baseRadius = this.visualWidth / 2; const points = 5 + Math.floor(crazyMeter / 15); const pulse = Math.sin(Date.now() / 150) * (baseRadius * 0.15); const rotation = Date.now() / 800; for (let i = 0; i < points * 2; i++) { const radius = (i % 2 === 0) ? baseRadius + pulse : baseRadius * 0.6 + pulse; const angle = (i / points) * Math.PI + rotation; ctx.lineTo(this.x + Math.cos(angle) * radius, this.y + Math.sin(angle) * radius); }}
+                    ctx.closePath(); ctx.fill();
+                    if (keys['ArrowUp'] || keys['ArrowDown'] || keys['ArrowLeft'] || keys['ArrowRight']) { ctx.fillStyle = `hsl(${(Date.now()/5) % 360}, 100%, 70%)`; ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 15; ctx.fillRect(this.x - 8, this.y + this.height/2, 16, 10 + Math.random()*8); } // Ajusté position moteur
+                    ctx.restore();
+                 },
+                move() { /* Copié/collé de la pensée précédente */
+                     let currentSpeed = this.speed * (abilities.timeWarp.active && !bossActive ? 0.4 : 1);
+                     if (keys['ArrowLeft'] && this.x > this.width / 2) this.x -= currentSpeed;
+                     if (keys['ArrowRight'] && this.x < CANVAS_WIDTH - this.width / 2) this.x += currentSpeed;
+                     if (keys['ArrowUp'] && this.y > this.height / 2) this.y -= currentSpeed;
+                     if (keys['ArrowDown'] && this.y < CANVAS_HEIGHT - this.height / 2) this.y += currentSpeed;
+                     if (crazyMeter > 40) { const cf = crazyMeter / 50; this.x += Math.sin(Date.now() / (150 - cf * 3)) * cf; this.y += Math.cos(Date.now() / (140 - cf * 3)) * cf * 0.8; this.x = Math.max(this.width / 2, Math.min(CANVAS_WIDTH - this.width / 2, this.x)); this.y = Math.max(this.height / 2, Math.min(CANVAS_HEIGHT - this.height / 2, this.y)); }
+                     this.updateTimers();
+                 },
+                shoot() {
+                    // console.log("--- player.shoot() appelée ---"); // Message 4 (Débogage commenté)
+                    const now = Date.now();
+                    let effectiveShootDelay = this.shootDelay * (this.rapidFire ? 0.5 : 1);
+                    // console.log("Vérification délai: Temps actuel =", now, ", Dernier tir =", this.lastShotTime, ", Délai requis =", effectiveShootDelay); // Message 5 (Débogage commenté)
+
+                    if (!gameRunning || now - this.lastShotTime < effectiveShootDelay) {
+                        // console.log("TIR BLOQUÉ! Raison: jeu non démarré ou délai non écoulé."); // Message 6 (Débogage commenté)
+                        // console.log("   gameRunning:", gameRunning, ", Temps écoulé:", now - this.lastShotTime); // (Débogage commenté)
+                        return; // Arrête la fonction ici si bloqué
+                    }
+                    // console.log("Tir autorisé, préparation du projectile..."); // Message 7 (Débogage commenté)
+                    this.lastShotTime = now; // Met à jour l'heure du dernier tir
+
+                    const projectileSpeed = 8 + crazyMeter / 15 + level*0.1;
+                    const baseDamage = 1 + Math.floor(level / 4);
+                    const color = this.homingShots ? '#aa00ff' : '#00ffff';
+                    const pType = this.homingShots ? 'homingBullet' : 'bullet';
+
+                    let numShots = 1; let spread = Math.PI / 18;
+                    if (this.tripleShots || crazyMeter >= 50) numShots = 3;
+                    if (crazyMeter >= 85) numShots = 5;
+
+                    for (let i = 0; i < numShots; i++) {
+                        let angleOffset = (numShots > 1) ? (i - (numShots - 1) / 2) * spread : 0;
+                        const vx = Math.sin(angleOffset) * projectileSpeed;
+                        const vy = -Math.cos(angleOffset) * projectileSpeed;
+                        // console.log("Appel de spawnProjectile..."); // Message 8 (Débogage commenté)
+                        spawnProjectile(this.x, this.y - this.visualHeight / 2, vx, vy, 5, 15, color, baseDamage, pType);
+                    }
+                    playSound('shoot');
+                },
+                activateInvincibility(duration = PLAYER_INVINCIBILITY_DURATION) { this.isInvincible = true; this.invincibilityTimer = duration; },
+                updateTimers() { /* Copié/collé + corrections */
+                     const dt = 16.67; // Assumer 60fps pour simplifier, pourrait utiliser deltaTime réel si besoin
+                     if (this.isInvincible && (this.invincibilityTimer -= dt) <= 0) this.isInvincible = false;
+                     if (this.homingShots && (this.homingTimer -= dt) <= 0) this.homingShots = false;
+                     if (this.scoreMultiplier > 1 && (this.scoreMultiplierTimer -= dt) <= 0) this.scoreMultiplier = 1;
+                     if (this.rapidFire && (this.rapidFireTimer -= dt) <= 0) { this.rapidFire = false; this.shootDelay = 250;} // Reset delay
+                     if (this.tripleShots && (this.tripleShotsTimer -= dt) <= 0) this.tripleShots = false;
+                 },
+                activateHomingShots(duration = POWERUP_DURATION_DEFAULT) { this.homingShots = true; this.homingTimer = duration; },
+                activateScoreMultiplier(multiplier = 2, duration = POWERUP_DURATION_DEFAULT+2000) { this.scoreMultiplier = multiplier; this.scoreMultiplierTimer = duration; },
+                activateRapidFire(duration = POWERUP_DURATION_DEFAULT-1000) { this.rapidFire = true; this.rapidFireTimer = duration; this.shootDelay = 125; }, // Diminuer délai
+                activateTripleShots(duration = POWERUP_DURATION_DEFAULT+2000) { this.tripleShots = true; this.tripleShotsTimer = duration; },
+                activateShield() { this.shieldActive = true; }
+            };
+
+
+            // Create initial backgrounds
+            createBackgroundPattern(); // APPEL À LA FONCTION AJOUTÉE
+
+            // Setup Event listeners
+            setupEventListeners();
+
+            console.log("CCC2 Initialisation terminée.");
+            showMainMenu(); // Afficher le menu principal au début
+        }
+
+
+        // --- Event Listeners Setup ---
+        function setupEventListeners() {
+            console.log("Configuration des écouteurs d'événements...");
+            window.removeEventListener('keydown', handleKeyDown); // Nettoyer anciens listeners si ré-init
+            window.removeEventListener('keyup', handleKeyUp);
+            window.addEventListener('keydown', handleKeyDown);
+            window.addEventListener('keyup', handleKeyUp);
+
+             // Utilisation de fonctions anonymes pour passer le mode
+             if (startButtonNormal) startButtonNormal.onclick = () => startGame('normal'); else console.error("Bouton Normal Mode manquant");
+             if (startButtonCrazy) startButtonCrazy.onclick = () => startGame('crazy'); else console.error("Bouton Crazy Mode manquant");
+             if (restartButton) restartButton.onclick = restartGame; else console.error("Bouton Restart manquant");
+             if (mainMenuButton) mainMenuButton.onclick = showMainMenu; else console.error("Bouton Main Menu manquant");
+             if (continueButton) continueButton.onclick = continueGameAfterLevelUp; else console.error("Bouton Continue manquant");
+
+             // Ability buttons listeners
+             Object.keys(abilities).forEach(key => {
+                 const ability = abilities[key];
+                 if (ability.buttonElement) {
+                     ability.buttonElement.onclick = () => useAbility(key); // Utiliser onclick pour simplicité ici
+                 } else {
+                     // Warning déjà émis dans init
+                 }
+             });
+            console.log("Écouteurs configurés.");
+        }
+
+        // --- Input Handling ---
+        function handleKeyDown(e) {
+            keys[e.code] = true;
+            // Initialisation/Reprise AudioContext au premier input utilisateur (important pour certains navigateurs)
+            if (!audioContext && (window.AudioContext || window.webkitAudioContext)) {
+                 try { audioContext = new (window.AudioContext || window.webkitAudioContext)(); if(audioContext.state === 'suspended') audioContext.resume().catch(e => console.warn("Reprise AudioContext échouée:", e)); }
+                 catch(e) { console.error("Impossible de créer AudioContext:", e); audioContext = null; }
+             } else if (audioContext && audioContext.state === 'suspended') {
+                  audioContext.resume().catch(e => console.warn("Reprise AudioContext échouée:", e));
+             }
+
+            // Gestion de la touche Espace (TIR)
+            if (e.code === 'Space') {
+                // console.log("--- Touche Espace détectée! ---"); // Message 1 (Débogage commenté)
+                // console.log("Vérification: gameRunning =", gameRunning, ", player existe =", !!player); // Message 2 (Débogage commenté)
+                if (gameRunning && player) {
+                    player.shoot(); // Appel de la fonction de tir
+                } else {
+                    // console.log("Conditions non remplies pour tirer."); // Message 3 (Débogage commenté)
+                }
+                e.preventDefault(); // Empêche le défilement de la page
+            }
+
+            // Gestion des capacités (1, 2, 3)
+            if (gameRunning && player) {
+                if (e.key === '1') useAbilityByKey('superBlast');
+                if (e.key === '2') useAbilityByKey('timeWarp');
+                if (e.key === '3') useAbilityByKey('chaosZone');
+            }
+        }
+
+        function handleKeyUp(e) {
+            keys[e.code] = false;
+             // Tirer quand on relâche espace (style arcade classique) - Laisser commenté si on utilise handleKeyDown
+            // if (e.code === 'Space' && gameRunning && player) {
+            //      player.shoot();
+            // }
+        }
+
+        function useAbilityByKey(abilityKey) { // Appelé par handleKeyDown
+             const ability = abilities[abilityKey];
+             // Vérifier si l'abilité existe, est prête, et débloquée
+             if (ability && ability.ready && ability.unlockedAt <= level) {
+                 useAbility(abilityKey);
+             } else if (ability && !ability.ready) {
+                  console.log(`${ability.name} en cooldown.`); // Feedback utile
+                  // Ajouter un son de "cooldown"?
+             } else if (ability && ability.unlockedAt > level) {
+                  console.log(`${ability.name} pas encore débloqué (Niveau ${ability.unlockedAt}).`);
+             }
+        }
+
+
+        // --- High Score Management ---
+        function loadHighScores() {
+             try { /* Identique à la pensée précédente */
+                 const storedScores = localStorage.getItem('ccc2HighScores');
+                 if (storedScores) { highScores = JSON.parse(storedScores); if (highScores.normal === undefined) highScores.normal = 0; if (highScores.crazy === undefined) highScores.crazy = 0; }
+                 else { highScores = { normal: 0, crazy: 0 }; }
+             } catch (e) { console.error("Erreur chargement high scores:", e); highScores = { normal: 0, crazy: 0 }; }
+             updateHighScoresDisplay();
+        }
+        function saveHighScores() { /* Identique */ try { localStorage.setItem('ccc2HighScores', JSON.stringify(highScores)); } catch (e) { console.error("Erreur sauvegarde high scores:", e); } }
+        function updateHighScoresDisplay() { /* Identique */ if (highScoreNormal) highScoreNormal.textContent = highScores.normal; if (highScoreCrazy) highScoreCrazy.textContent = highScores.crazy; }
+
+
+        // --- Game Flow Control ---
+        function startGame(mode) {
+            console.log(`Démarrage du jeu en mode: ${mode}`);
+            // Initialisation/Reprise AudioContext (redondant avec handleKeyDown mais sécurité)
+            if (!audioContext && (window.AudioContext || window.webkitAudioContext)) {
+                 try { audioContext = new (window.AudioContext || window.webkitAudioContext)(); if(audioContext.state === 'suspended') audioContext.resume().catch(e => console.warn("Reprise AudioContext échouée:", e)); }
+                 catch(e) { console.error("Impossible de créer AudioContext:", e); audioContext = null; }
+             } else if (audioContext && audioContext.state === 'suspended') audioContext.resume().catch(e => console.warn("Reprise AudioContext échouée:", e));
+
+            // Stop previous loop if running
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+
+            // Reset state
+            gameMode = mode || 'normal'; gameRunning = true; score = 0;
+            lives = (gameMode === 'crazy') ? CRAZY_MODE_PLAYER_LIVES : BASE_PLAYER_LIVES;
+            crazyMeter = (gameMode === 'crazy') ? 30 : 0; level = 1;
+            scoreNeededForNextLevel = LEVEL_UP_SCORE_BASE;
+            enemies = []; projectiles = []; explosions = []; powerups = []; crazinessEffects = []; speechBubbles = [];
+            boss = null; bossActive = false; keys = {}; bossCheckDoneForScore = 0; lastTimestamp = 0;
+
+            // Reset player
+            if (player) { /* Reset complet du joueur */ player.x = CANVAS_WIDTH / 2; player.y = CANVAS_HEIGHT - 100; player.lastShotTime = 0; player.shootDelay = 250; player.isInvincible = false; player.invincibilityTimer = 0; player.shieldActive = false; player.homingShots = false; player.homingTimer = 0; player.scoreMultiplier = 1; player.scoreMultiplierTimer = 0; player.rapidFire = false; player.rapidFireTimer = 0; player.tripleShots = false; player.tripleShotsTimer = 0; }
+            else { console.error("L'objet joueur n'a pas été initialisé !"); return; } // Sécurité
+
+            // Reset abilities
+            Object.values(abilities).forEach(ability => { ability.ready = true; ability.lastUsed = 0; if (ability.timerId) clearTimeout(ability.timerId); if (ability.activeTimerId) clearTimeout(ability.activeTimerId); ability.timerId = null; ability.activeTimerId = null; ability.active = false; });
+
+            // Update UI visibility and content
+            if(startScreen) startScreen.classList.add('hidden');
+            if(gameOverScreen) gameOverScreen.classList.add('hidden');
+            if(levelUpScreen) levelUpScreen.classList.add('hidden');
+            if(bossHealthContainer) bossHealthContainer.classList.add('hidden');
+            updateScore(); updateLives(); updateCrazyMeterDisplay(); updateAbilitiesUI();
+
+            // Create starting elements
+            createBackgroundPattern(); // Refresh background
+            const initialEnemies = (gameMode === 'crazy') ? 7 : 4; // Un peu plus
+            for (let i = 0; i < initialEnemies; i++) spawnEnemy();
+            createSpeechBubble(player.x, player.y - 80, gameMode === 'crazy' ? "MODE FOLIE ACTIVÉ!" : "MODE NORMAL. C'est parti!");
+
+            // Start the game loop
+            lastTimestamp = performance.now(); // Important de reset avant le premier appel
+            gameLoop(lastTimestamp);
+        }
+
+        function gameLoop(timestamp) { // timestamp est fourni par requestAnimationFrame
+            if (!gameRunning) return; // Stop if not running
+
+            // Calculate deltaTime (temps écoulé depuis la dernière frame en secondes)
+             // Utiliser timestamp fourni, pas Date.now()
+             const deltaTime = Math.min(0.05, (timestamp - lastTimestamp) / 1000); // Limiter à 50ms max (évite sauts si onglet inactif)
+             lastTimestamp = timestamp; // Mettre à jour pour la prochaine frame
+             const timeFactor = (abilities.timeWarp.active && !bossActive) ? 0.3 : 1; // Ralentisseur global (sauf joueur/boss)
+             const dt = deltaTime; // Utiliser deltaTime directement pour les updates qui en ont besoin
+
+
+            // --- Clearing & Effects ---
+            ctx.fillStyle = `rgba(10, 10, 20, ${crazyMeter > 70 ? 0.25 : 0.4})`; ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+            applyCrazyEffects(); // Applique transformations globales (shake, etc.)
+
+             // --- Drawing Background (Draw FIRST) ---
+             drawBackground(); // DESSIN DE L'ARRIÈRE-PLAN AJOUTÉ ICI
+
+            // --- Updates (passer dt ou deltaTime * 60 selon la logique interne) ---
+            updateBackground(dt * 60); // updateBackground attendait un facteur *60
+            if(player) player.move(); // Mouvement joueur basé sur input direct
+            updateEnemies(dt * 60 * timeFactor); // Passer dt ajusté et normalisé
+            updateProjectiles(dt * 60 * timeFactor); // Passer dt ajusté et normalisé
+            updateExplosions(dt * 60); // Les explosions ne sont pas ralenties par timeWarp ? À ajuster si besoin.
+            updatePowerups(dt * 60 * timeFactor); // Passer dt ajusté et normalisé
+            updateCrazinessEffects(dt * 60);
+            updateSpeechBubbles(); // Pas besoin de dt a priori
+            if (bossActive && boss) updateBoss(dt * 60); // Le boss n'est pas ralenti par timeWarp
+            if (player) player.updateTimers(); // Mettre à jour les timers du joueur (basé sur assumption 60fps interne)
+
+            // --- Drawing Game Elements (OVER the background) ---
+            if(player) player.draw();
+            enemies.forEach(e => e.draw());
+            // console.log("Drawing projectiles. Count:", projectiles.length); // Débogage (commenté)
+            projectiles.forEach(p => p.draw());
+            explosions.forEach(e => e.draw());
+            powerups.forEach(p => p.draw());
+            crazinessEffects.forEach(e => e.draw());
+            if (bossActive && boss) boss.draw();
+
+            // --- Collision ---
+            checkCollisions();
+
+            // --- UI Updates ---
+            // updateScore(); updateLives(); updateCrazyMeterDisplay(); // Déjà appelés quand valeur change
+            updateAbilitiesUI(); // Mettre à jour affichage cooldowns
+
+            // --- Game Progression & Spawning ---
+            if (!abilities.chaosZone.active) {
+                increaseCrazyMeter(CRAZY_INCREMENT * (gameMode === 'crazy' ? 1.5 : 1) * (1 + level*0.05) * dt * 60); // Normalisé à 60fps
+            }
+            // Spawn Enemies (taux basé sur dt et timeFactor)
+            const baseSpawnProb = 0.015 + crazyMeter / 800 + level * 0.0015;
+            // Utiliser deltaTime pour les probabilités basées sur le temps réel
+            if (!bossActive && Math.random() < baseSpawnProb * dt * 60 * timeFactor) {
+                spawnEnemy();
+                if (gameMode === 'crazy' && Math.random() < 0.25) spawnEnemy();
+            }
+            // Spawn Powerups
+            if (Math.random() < 0.002 * dt * 60) spawnPowerup();
+            // Spawn Boss Check
+             const scoreForNextBossCheck = Math.floor(score / BOSS_SCORE_INTERVAL); // Vérifier à chaque intervalle
+             if (!bossActive && score > 0 && scoreForNextBossCheck > bossCheckDoneForScore) {
+                if (Math.random() < BOSS_SPAWN_CHANCE) {
+                     spawnBoss();
+                 }
+                 bossCheckDoneForScore = scoreForNextBossCheck; // Marquer cet intervalle comme vérifié
+             }
+            // Level Up Check
+            if (score >= scoreNeededForNextLevel) levelUp();
+
+            // --- End Frame ---
+            ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transformations globales
+
+            // Request next frame
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        function continueGameAfterLevelUp() { // Appelée par le bouton Continue
+            if (levelUpScreen) levelUpScreen.classList.add('hidden');
+            gameRunning = true; // Reprendre le jeu
+            lastTimestamp = performance.now(); // Reset timestamp pour éviter saut de temps
+            animationFrameId = requestAnimationFrame(gameLoop); // Relancer la boucle
+        }
+
+
+        // --- Update Functions for Game Elements (Adjusted for dt factor) ---
+        // NOTE: dt Factor is deltaTime * 60 * timeFactor (or just deltaTime * 60 if not slowed)
+        function updateBackground(dtFactor) { backgrounds.forEach(star => { star.y += star.speed * dtFactor / 60; /* Adjusted: speed was already scaled, divide by 60 */ if (star.y > CANVAS_HEIGHT + star.size) { star.y = -star.size; star.x = Math.random() * CANVAS_WIDTH; star.speed = (Math.random() * 2 + 0.5 + crazyMeter / 30) * (gameMode === 'crazy' ? 1.2 : 1); star.color = `hsl(${Math.random() * 360}, 100%, ${60 + Math.random()*40}%)`; } }); }
+        function updateEnemies(dtFactor) { for (let i = enemies.length - 1; i >= 0; i--) { enemies[i].update(dtFactor); if (enemies[i].remove) enemies.splice(i, 1); } }
+        function updateProjectiles(dtFactor) { for (let i = projectiles.length - 1; i >= 0; i--) { projectiles[i].update(dtFactor); if (projectiles[i].remove) projectiles.splice(i, 1); } }
+        function updateExplosions(dtFactor) { for (let i = explosions.length - 1; i >= 0; i--) { explosions[i].update(dtFactor); if (explosions[i].remove) explosions.splice(i, 1); } }
+        function updatePowerups(dtFactor) { for (let i = powerups.length - 1; i >= 0; i--) { powerups[i].update(dtFactor); if (powerups[i].remove) powerups.splice(i, 1); } }
+        function updateCrazinessEffects(dtFactor) { if (crazyMeter > 50 && Math.random() < crazyMeter / 1000 * dtFactor/60) { /* Ajouter nouvel effet */ } for (let i = crazinessEffects.length - 1; i >= 0; i--) { crazinessEffects[i].update(dtFactor); if (crazinessEffects[i].remove) crazinessEffects.splice(i, 1); } }
+        function updateSpeechBubbles() { /* Reste basé sur CSS/setTimeout */ }
+        function updateBoss(dtFactor) { if (!boss || !bossActive) return; boss.update(dtFactor); const healthPercent = Math.max(0, boss.health / boss.maxHealth); if (bossHealthBar) bossHealthBar.style.width = `${healthPercent * 100}%`; if (boss.health <= 0) bossDefeated(); }
+
+        // --- Spawning Functions (Need update methods adjusted for dtFactor) ---
+        function spawnEnemy() {
+            const size = 20 + Math.random() * 25 + (crazyMeter / 3);
+            const speed = (1 + Math.random() * 2 + crazyMeter / 50 + level * 0.1); // Vitesse de base (pixels par 1/60 sec)
+            const hp = 1 + Math.floor(crazyMeter / 18 + size / 25 + level * 0.2);
+            const spawnEdge = Math.random(); let startX, startY, angle;
+            if (spawnEdge < 0.6) { startX = Math.random() * (CANVAS_WIDTH - size); startY = -size; angle = Math.PI / 2 + (Math.random() - 0.5) * 0.5; }
+            else if (spawnEdge < 0.8) { startX = -size; startY = Math.random() * (CANVAS_HEIGHT * 0.7); angle = (Math.random() - 0.5) * Math.PI / 2; }
+            else { startX = CANVAS_WIDTH; startY = Math.random() * (CANVAS_HEIGHT * 0.7); angle = Math.PI + (Math.random() - 0.5) * Math.PI / 2; }
+            let type = Math.floor(Math.random() * (3 + level + Math.floor(crazyMeter / 15)));
+            let color = `hsl(${Math.random() * 360}, 100%, 60%)`; let movementPattern = Math.floor(Math.random() * (1 + level / 2 + crazyMeter / 20));
+            let shootPattern = (Math.random() < (0.05 + crazyMeter/500 + level/20)) ? Math.floor(Math.random()*3) : -1;
+
+            enemies.push({ x: startX, y: startY, width: size, height: size, speed: speed, type: type, hp: hp, maxHp: hp, color: color, angle: angle, movementPattern: movementPattern, shootPattern: shootPattern, lastShotTime: 0, shootDelay: 1500 + Math.random()*2000, rotation: 0, rotationSpeed: (Math.random() - 0.5) * 0.05 * (1 + crazyMeter/50), remove: false,
+                 draw() { ctx.save(); ctx.translate(this.x + this.width / 2, this.y + this.height / 2); ctx.rotate(this.rotation); ctx.fillStyle = this.color; ctx.shadowColor = this.color; ctx.shadowBlur = 8; if (this.hp < this.maxHp && this.maxHp > 1) { const ratio = this.hp / this.maxHp; ctx.fillStyle = '#500'; ctx.fillRect(-this.width/2, -this.height/2 - 8, this.width, 5); ctx.fillStyle = ratio > 0.5 ? '#0f0' : ratio > 0.2 ? '#ff0' : '#f00'; ctx.fillRect(-this.width/2, -this.height/2 - 8, this.width * ratio, 5); ctx.fillStyle = this.color; } ctx.beginPath(); if (this.type % 3 === 0) ctx.rect(-this.width/2, -this.height/2, this.width, this.height); else if (this.type % 3 === 1) ctx.arc(0, 0, this.width/2, 0, Math.PI * 2); else { ctx.moveTo(0, -this.height/2); ctx.lineTo(this.width/2, this.height/2); ctx.lineTo(-this.width/2, this.height/2); ctx.closePath();} ctx.fill(); ctx.restore(); ctx.shadowBlur = 0; },
+                 update(dtFactor) { /* ADAPTÉ POUR dtFactor */
+                     // Note: dtFactor = deltaTime * 60 * timeFactor
+                     const timeDelta = dtFactor / 60; // Reconvertir en fraction de seconde si besoin pour certaines logiques
+                     if(this.movementPattern % 3 === 1) this.angle += Math.sin(Date.now()/500 + this.y/100) * 0.05 * dtFactor;
+                     else if (this.movementPattern % 3 === 2) { const targetAngle = Math.atan2(player.y - (this.y+this.height/2), player.x - (this.x+this.width/2)); let angleDiff = targetAngle - this.angle; while (angleDiff <= -Math.PI) angleDiff += Math.PI * 2; while (angleDiff > Math.PI) angleDiff -= Math.PI * 2; this.angle += Math.sign(angleDiff) * Math.min(Math.abs(angleDiff), 0.03 * dtFactor); }
+                     this.x += Math.cos(this.angle) * this.speed * dtFactor;
+                     this.y += Math.sin(this.angle) * this.speed * dtFactor;
+                     this.rotation += this.rotationSpeed * dtFactor;
+                     const now = Date.now();
+                     const timeWarpMultiplier = (abilities.timeWarp.active && !bossActive) ? (1 / 0.3) : 1; // Inverse pour le délai
+                     if(this.shootPattern !== -1 && now - this.lastShotTime > this.shootDelay * timeWarpMultiplier) {
+                         this.shoot(); this.lastShotTime = now;
+                     }
+                     const margin = 50; if (this.y > CANVAS_HEIGHT + margin || this.y < -margin - this.height || this.x < -margin - this.width || this.x > CANVAS_WIDTH + margin) { this.remove = true; if (this.y < CANVAS_HEIGHT + margin) increaseCrazyMeter(0.3); }
+                 },
+                 shoot() { const bulletSpeed = (2 + level * 0.2 + crazyMeter / 50); const cx = this.x + this.width / 2; const cy = this.y + this.height / 2; const angleToPlayer = Math.atan2(player.y - cy, player.x - cx); if(this.shootPattern % 3 === 0) spawnProjectile(cx, cy, Math.cos(angleToPlayer) * bulletSpeed, Math.sin(angleToPlayer) * bulletSpeed, 8, 8, '#ff5555', 1, 'enemyBullet'); else if (this.shootPattern % 3 === 1) for(let i=-1; i<=1; i++) { const angle = angleToPlayer + i * (Math.PI / 12); spawnProjectile(cx, cy, Math.cos(angle) * bulletSpeed, Math.sin(angle) * bulletSpeed, 6, 6, '#ff8800', 1, 'enemyBullet'); } else { const numShots = 5 + Math.floor(crazyMeter/20); for(let i=0; i<numShots; i++) { const angle = (i / numShots) * Math.PI * 2; spawnProjectile(cx, cy, Math.cos(angle) * bulletSpeed*0.8, Math.sin(angle) * bulletSpeed*0.8, 5, 5, '#ff00ff', 1, 'enemyBullet'); }} playSound('enemyShoot'); }
+            });
+        }
+
+        function spawnProjectile(x, y, vx, vy, width, height, color, damage, type = 'bullet', owner = 'player') {
+            // console.log("--- spawnProjectile() appelée ---"); // Message 9 (Débogage commenté)
+            // console.log("Paramètres:", { x, y, vx, vy, type, owner }); // Message 10 (Débogage commenté)
+            projectiles.push({ x: x, y: y, vx: vx, vy: vy, width: width, height: height, color: color, damage: damage, type: type, owner: owner, life: (type === 'homingBullet' || owner === 'enemyBullet') ? 400 : 200, /* Donner une vie même aux bullets normaux pour cleanup */ remove: false,
+                 draw() { /* ... Dessin comme avant ... */
+                     // console.log(`Drawing projectile at x=${this.x}, y=${this.y}`); // Débogage (commenté)
+                     ctx.save(); ctx.fillStyle = this.color; ctx.shadowColor = this.color; ctx.shadowBlur = 8; if(this.type === 'enemyBullet') { ctx.beginPath(); ctx.arc(this.x, this.y, this.width/2, 0, Math.PI*2); ctx.fill(); } else if (this.type === 'homingBullet') { ctx.beginPath(); ctx.moveTo(this.x, this.y-this.height/2); ctx.lineTo(this.x+this.width/2, this.y+this.height/2); ctx.lineTo(this.x-this.width/2, this.y+this.height/2); ctx.closePath(); ctx.fill(); } else { ctx.fillRect(this.x - this.width/2, this.y - this.height/2, this.width, this.height); } ctx.restore(); ctx.shadowBlur = 0;
+                 },
+                 update(dtFactor) { /* ADAPTÉ POUR dtFactor */
+                     // Note: dtFactor = deltaTime * 60 * timeFactor
+                     this.x += this.vx * dtFactor;
+                     this.y += this.vy * dtFactor;
+                     if (this.life) this.life -= dtFactor; // Décrémenter la vie basée sur le facteur temps
+                     if (this.type === 'homingBullet') { let target = bossActive ? boss : null; let minDist = Infinity; if(!target) enemies.forEach(enemy => { const dist = Math.hypot(enemy.x + enemy.width / 2 - this.x, enemy.y + enemy.height / 2 - this.y); if (dist < minDist && dist < 400) { minDist = dist; target = enemy; }}); if(target) { const targetX = target.x + target.width / 2; const targetY = target.y + target.height / 2; const angle = Math.atan2(targetY - this.y, targetX - this.x); const homingForce = 0.15 * dtFactor; this.vx += Math.cos(angle) * homingForce; this.vy += Math.sin(angle) * homingForce; const currentSpeed = Math.hypot(this.vx, this.vy); const maxSpeed = 8; /* Vitesse max non affectée par dtFactor ici? A voir */ if (currentSpeed > maxSpeed) { this.vx = (this.vx / currentSpeed) * maxSpeed; this.vy = (this.vy / currentSpeed) * maxSpeed; } } }
+                     if (this.life <= 0 || this.y < -this.height || this.y > CANVAS_HEIGHT + this.height || this.x < -this.width || this.x > CANVAS_WIDTH + this.width) this.remove = true;
+                 }
+            });
+            // console.log("Projectile ajouté. Nombre total de projectiles:", projectiles.length); // Message 11 (Débogage commenté)
+        }
+
+        function spawnPowerup() { /* Adapté update pour dtFactor */
+            const size = 25; const speed = (1.5 + crazyMeter / 60);
+            const powerupTypes = [ { type: 0, symbol: '❤️', color: '#ff00ff', weight: 25 }, { type: 1, symbol: '★', color: '#ffff00', weight: 25 }, { type: 2, symbol: '🌀', color: '#00ffff', weight: 15 }, { type: 3, symbol: '🛡️', color: '#00ff00', weight: 10 }, { type: 5, symbol: '⚡', color: '#ff7700', weight: 8, levelReq: 2 }, { type: 6, symbol: '🔵', color: '#0000ff', weight: 8, levelReq: 2 }, { type: 7, symbol: '🎯', color: '#8800ff', weight: 5, levelReq: 4 }, { type: 8, symbol: '✖️', color: '#ffffff', weight: 4, levelReq: 4 } ];
+            let availableTypes = powerupTypes.filter(p => !p.levelReq || level >= p.levelReq); let totalWeight = availableTypes.reduce((sum, p) => sum + p.weight, 0); let rand = Math.random() * totalWeight; let chosenPowerupType = availableTypes[availableTypes.length - 1]; for (const p of availableTypes) { if (rand < p.weight) { chosenPowerupType = p; break; } rand -= p.weight; }
+            powerups.push({ x: Math.random() * (CANVAS_WIDTH - size), y: -size, width: size, height: size, speed: speed, type: chosenPowerupType.type, symbol: chosenPowerupType.symbol, color: chosenPowerupType.color, remove: false,
+                 draw() { /* ... Dessin comme avant ... */ ctx.save(); const pulseSize = (Math.sin(Date.now()/150) * 0.1 + 1) * this.width / 2; ctx.fillStyle = this.color; ctx.shadowColor = this.color; ctx.shadowBlur = 10; ctx.beginPath(); ctx.arc(this.x + this.width/2, this.y + this.height/2, pulseSize, 0, Math.PI * 2); ctx.fill(); ctx.font = `${this.width * 0.7}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.shadowBlur = 0; ctx.fillStyle = '#000'; ctx.fillText(this.symbol, this.x + this.width/2, this.y + this.height/2 + 2); ctx.restore(); },
+                 update(dtFactor) { /* ADAPTÉ POUR dtFactor */ this.y += this.speed * dtFactor; this.x += Math.sin(this.y / 60) * 0.6 * dtFactor; if (this.y > CANVAS_HEIGHT + this.height) this.remove = true; }
+            });
+        }
+
+        function spawnBoss() { /* Adapté update pour dtFactor */
+             if(bossActive) return;
+             const bossTypes = [ { name: "LE CHAOS", health: 1000, color: '#ff0000', size: 150 }, { name: "L'ANARCHIE", health: 1500, color: '#00ffff', size: 180 }, { name: "LE DÉLIRE", health: 2000, color: '#ff00ff', size: 120 } ]; const bossType = bossTypes[Math.floor(Math.random() * bossTypes.length)];
+             boss = { name: bossType.name, x: CANVAS_WIDTH / 2 - bossType.size / 2, /* Ajuster position initiale */ y: -bossType.size, width: bossType.size, height: bossType.size, maxHealth: bossType.health * (1 + level * 0.2 + (gameMode==='crazy'? 0.5 : 0)), health: 0, phase: 1, targetY: CANVAS_HEIGHT * 0.15, speed: 1.5, color: bossType.color, lastShotTime: 0, shootDelay: 1200, movePattern: 0, direction: 1, rotation: 0, entering: true,
+                 draw() { /* ... Dessin comme avant ... */ ctx.save(); const cx = this.x + this.width/2; const cy = this.y + this.height/2; ctx.translate(cx, cy); ctx.rotate(this.rotation); ctx.fillStyle = this.color; ctx.shadowColor = this.color; ctx.shadowBlur = 20; ctx.beginPath(); ctx.arc(0, 0, this.width/2, 0, Math.PI*2); ctx.fill(); ctx.fillStyle='white'; ctx.beginPath(); ctx.arc(-this.width*0.2, -this.height*0.1, this.width*0.1, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(this.width*0.2, -this.height*0.1, this.width*0.1, 0, Math.PI*2); ctx.fill(); ctx.fillStyle='black'; ctx.beginPath(); ctx.arc(-this.width*0.2, -this.height*0.1, this.width*0.05, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(this.width*0.2, -this.height*0.1, this.width*0.05, 0, Math.PI*2); ctx.fill(); ctx.restore(); ctx.shadowBlur = 0; },
+                 update(dtFactor) { /* ADAPTÉ POUR dtFactor */ if (this.entering) { this.y += this.speed * dtFactor; this.health = Math.min(this.maxHealth, this.health + this.maxHealth / (2 * 60) * dtFactor); /* 2 sec pour remplir vie */ if (this.y >= this.targetY) { this.entering = false; this.y = this.targetY; this.health = this.maxHealth; this.movePattern = 1 + Math.floor(Math.random() * 3); createSpeechBubble(this.x+this.width/2, this.y, "ME VOICI!"); } return; } if(this.movePattern === 1) { this.x += 2 * this.direction * dtFactor; if(this.x <= 0 || this.x + this.width >= CANVAS_WIDTH) { this.direction *= -1; this.x = Math.max(0, Math.min(CANVAS_WIDTH - this.width, this.x)); /* Clamp position */ } } else { const angle = Date.now() / 1000; this.x = CANVAS_WIDTH / 2 + Math.sin(angle) * (CANVAS_WIDTH*0.3) - this.width / 2; this.y = this.targetY + Math.sin(angle * 2) * 30; this.x = Math.max(0, Math.min(CANVAS_WIDTH - this.width, this.x)); /* Clamp position */} this.rotation += 0.01 * dtFactor; const now = Date.now(); const effectiveShootDelay = this.shootDelay / this.phase; if(now - this.lastShotTime > effectiveShootDelay) { this.shoot(); this.lastShotTime = now; } const healthRatio = this.health / this.maxHealth; let newPhase = this.phase; if (healthRatio < 0.33 && this.phase < 3) newPhase = 3; else if (healthRatio < 0.66 && this.phase < 2) newPhase = 2; if(newPhase > this.phase) { this.phase = newPhase; if(bossPhaseDisplay) bossPhaseDisplay.textContent = `PHASE ${this.phase}!`; this.movePattern = 1 + Math.floor(Math.random() * 3); this.shootDelay *= 0.75; this.speed += 0.5; createSpeechBubble(this.x+this.width/2, this.y, `PHASE ${this.phase} ACTIVÉE!`); createExplosion(this.x+this.width/2, this.y+this.height/2, this.color, this.width*0.8, 50); } },
+                 shoot() { /* ... Tir comme avant (pas besoin de dt ici) ... */ const cx = this.x + this.width / 2; const cy = this.y + this.height / 2; const numShots = 3 + this.phase * 2; const speed = 3 + this.phase; const patternType = this.phase === 1 ? 'spread' : (this.phase === 2 ? 'circle' : 'aimed_burst'); if(patternType === 'spread') { const spreadAngle = Math.PI / 6; for(let i=0; i<numShots; i++) { const angle = Math.PI/2 - spreadAngle/2 + (i/(numShots-1))*spreadAngle; spawnProjectile(cx, cy, Math.cos(angle)*speed, Math.sin(angle)*speed, 10, 10, '#ff5500', 1, 'enemyBullet'); } } else if (patternType === 'circle') { for(let i=0; i<numShots; i++) { const angle = (i/numShots) * Math.PI * 2 + this.rotation; spawnProjectile(cx, cy, Math.cos(angle)*speed, Math.sin(angle)*speed, 8, 8, '#ffff00', 1, 'enemyBullet'); } } else { const angleToPlayer = Math.atan2(player.y - cy, player.x - cx); for(let i=0; i<numShots; i++) { const angle = angleToPlayer + (Math.random() - 0.5) * 0.3; spawnProjectile(cx, cy, Math.cos(angle)*speed*1.2, Math.sin(angle)*speed*1.2, 12, 12, '#ff00ff', 1, 'enemyBullet'); } } playSound('bossShoot'); }
+             };
+             bossActive = true; boss.health = 0; if(bossHealthContainer) bossHealthContainer.classList.remove('hidden'); if(bossHealthBar) bossHealthBar.style.width = '0%'; if(bossName) bossName.textContent = boss.name; if(bossPhaseDisplay) bossPhaseDisplay.textContent = "ARRIVÉE..."; createSpeechBubble(CANVAS_WIDTH / 2, 50, `ATTENTION! ${boss.name} APPROCHE!`); playSound('bossSpawn');
+        }
+
+        // --- Collision Detection & Handling ---
+        function checkCollisions() { /* Identique à la pensée précédente, vérifie player, projectiles, boss, ennemis, powerups, bouclier, chaos zone */
+             if (!player) return;
+             const playerHitbox = {
+                 x: player.x - player.width / 2, // Utiliser hitbox réelle, pas visuelle
+                 y: player.y - player.height / 2,
+                 width: player.width,
+                 height: player.height
+             };
+
+             // Projectile (Player) vs Enemy/Boss
+             for (let i = projectiles.length - 1; i >= 0; i--) { const p = projectiles[i]; if (p.owner !== 'player' || p.remove) continue; let projectileRemoved = false; if (bossActive && boss && !boss.entering && checkAABBCollision(p, boss)) { boss.health -= p.damage; createExplosion(p.x, p.y, '#ffffff', 5, 3); p.remove = true; projectileRemoved = true; playSound('bossHit'); continue; } if (!projectileRemoved) for (let j = enemies.length - 1; j >= 0; j--) { const enemy = enemies[j]; if (checkAABBCollision(p, enemy)) { enemy.hp -= p.damage; createExplosion(p.x, p.y, '#ffffff', 5, 3); p.remove = true; projectileRemoved = true; if (enemy.hp <= 0) { const scoreGained = Math.floor((50 + enemy.width + enemy.maxHp * 5) * player.scoreMultiplier); score += scoreGained; updateScore(); increaseCrazyMeter((1 + enemy.maxHp / 10) * (abilities.chaosZone.active ? -1 : 1)); createExplosion(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, enemy.color, enemy.width / 1.5, 10 + Math.floor(enemy.width / 4)); playSound('explosion'); enemies.splice(j, 1); } else playSound('hit'); break; } } }
+             // Projectile (Enemy/Boss) vs Player
+             if (!player.isInvincible && !player.shieldActive) { for (let i = projectiles.length - 1; i >= 0; i--) { const p = projectiles[i]; if (p.owner === 'player' || p.remove) continue; if (checkAABBCollision(p, playerHitbox)) { handlePlayerHit(p); p.remove = true; break; } } }
+             // Player vs Enemy
+             if (!player.isInvincible) { for (let i = enemies.length - 1; i >= 0; i--) { const enemy = enemies[i]; if (checkAABBCollision(playerHitbox, enemy)) { if (player.shieldActive) { player.shieldActive = false; createExplosion(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, enemy.color, enemy.width); createExplosion(player.x, player.y, '#00ffff', player.shieldRadius*1.5, 30); playSound('shieldBreak'); enemies.splice(i, 1); } else { handlePlayerHit(enemy); enemies.splice(i, 1); } break; } } }
+             // Player vs Powerup
+             for (let i = powerups.length - 1; i >= 0; i--) { const powerup = powerups[i]; if (checkAABBCollision(playerHitbox, powerup)) { applyPowerup(powerup.type); playSound('powerup'); powerups.splice(i, 1); break; } }
+             // Projectile (Enemy/Boss) vs Shield
+             if (player.shieldActive) { for (let i = projectiles.length - 1; i >= 0; i--) { const p = projectiles[i]; if (p.owner === 'player' || p.remove) continue; const dist = Math.hypot(p.x - player.x, p.y - player.y); if (dist < player.shieldRadius) { createExplosion(p.x, p.y, p.color, 10, 5); p.remove = true; playSound('shieldHit'); } } }
+             // Projectile (Enemy/Boss) vs Chaos Zone
+             if (abilities.chaosZone.active && abilities.chaosZone.particleId !== null) { const zoneParticle = explosions.find(p => p.id === abilities.chaosZone.particleId); if (zoneParticle) { for (let i = projectiles.length - 1; i >= 0; i--) { const p = projectiles[i]; if (p.owner === 'player' || p.type !== 'enemyBullet' || p.remove) continue; const dist = Math.hypot(p.x - zoneParticle.x, p.y - zoneParticle.y); if (dist < zoneParticle.radius) { createExplosion(p.x, p.y, p.color, 10, 5); p.remove = true; playSound('chaosAbsorb'); } } } else { abilities.chaosZone.active = false; abilities.chaosZone.particleId = null; } }
+             // Cleanup removed projectiles
+             projectiles = projectiles.filter(p => !p.remove);
+        }
+
+        // Helper for AABB collision check (assumes obj1, obj2 have x, y, width, height)
+        function checkAABBCollision(obj1, obj2) {
+            return obj1.x < obj2.x + obj2.width &&
+                   obj1.x + obj1.width > obj2.x &&
+                   obj1.y < obj2.y + obj2.height &&
+                   obj1.y + obj1.height > obj2.y;
+        }
+
+        function handlePlayerHit(source) { /* Identique */ if (player.isInvincible) return; lives--; updateLives(); increaseCrazyMeter(8); createExplosion(player.x, player.y, player.color, player.visualWidth * 1.5, 40); if (source && source.x) createExplosion(source.x + (source.width/2 || 0), source.y + (source.height/2 || 0), source.color || '#ff0000', source.width || 30, 20); playSound('playerHit'); if (lives <= 0) gameOver(); else player.activateInvincibility(); }
+        function applyPowerup(type) { /* Identique */ switch(type) { case 0: if (lives < 9) lives++; updateLives(); break; case 1: score += 500 + Math.floor(crazyMeter * 5); updateScore(); break; case 2: increaseCrazyMeter(-25); break; /* Shield était type 3 avant, maintenant c'est invincible? Non, type 6 */ case 3: player.activateInvincibility(5000); break; case 5: player.activateRapidFire(); break; case 6: player.activateShield(); break; case 7: player.activateHomingShots(); break; case 8: player.activateScoreMultiplier(); break; } createSpeechBubble(player.x, player.y - 60, `Power Up! (${getPowerupName(type)})`); }
+        function getPowerupName(type) { /* Identique */ switch(type) { case 0: return "Vie Extra"; case 1: return "Bonus Score"; case 2: return "Calme"; case 3: return "Invincible"; case 5: return "Tir Rapide"; case 6: return "Bouclier"; case 7: return "Tir Guidé"; case 8: return "Score x2"; default: return "??"; } }
+        function createExplosion(x, y, color, size = 10, count = 15) { /* Adapté update pour dtFactor */ for (let i = 0; i < count; i++) { const angle = Math.random() * Math.PI * 2; const speed = 1 + Math.random() * (size / 4); const particleSize = Math.max(1, 2 + Math.random() * (size / 10)); const lifetime = 40 + Math.random() * 60; explosions.push({ id: (color === 'rgba(150, 0, 255, 0.2)') ? abilities.chaosZone.particleId : undefined, /* Tag chaos zone */ x: x + (Math.random()-0.5)*size*0.3, y: y + (Math.random()-0.5)*size*0.3, radius: size, /* Ajouter radius pour chaos zone */ vx: Math.cos(angle) * speed * (0.6 + Math.random() * 0.8), vy: Math.sin(angle) * speed * (0.6 + Math.random() * 0.8), size: particleSize, color: color || `hsl(${Math.random() * 360}, 100%, 70%)`, life: lifetime, maxLife: lifetime, gravity: 0.08, friction: 0.97, remove: false, draw() { /* Modifié pour chaos zone */ if(this.id && this.id === abilities.chaosZone.particleId) { ctx.save(); ctx.globalAlpha = 0.2 + Math.sin(Date.now()/200)*0.1; ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill(); ctx.restore(); } else { ctx.save(); ctx.globalAlpha = this.life / this.maxLife; ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, this.size * (this.life / this.maxLife), 0, Math.PI * 2); ctx.fill(); ctx.restore(); } }, update(dtFactor) { if(this.id && this.id === abilities.chaosZone.particleId) { /* Chaos zone update */ this.x = player.x; this.y = player.y; this.life -= dtFactor; if(this.life <= 0) {this.remove = true; if(abilities.chaosZone.active) { abilities.chaosZone.active=false; abilities.chaosZone.particleId=null; createSpeechBubble(player.x, player.y - 50, "Chaos Zone Terminée"); }} } else { /* Normal particle update */ this.vx *= Math.pow(this.friction, dtFactor); this.vy *= Math.pow(this.friction, dtFactor); this.vy += this.gravity * dtFactor; this.x += this.vx * dtFactor; this.y += this.vy * dtFactor; this.life -= dtFactor; if (this.life <= 0) this.remove = true; } } }); } }
+        function increaseCrazyMeter(amount) { /* Identique à la pensée précédente */ if (abilities.chaosZone.active && amount > 0) return; /* Ne pas augmenter si chaos zone active */ crazyMeter = Math.max(0, Math.min(100, crazyMeter + amount)); updateCrazyMeterDisplay(); if (amount > 0 && Math.floor(crazyMeter / 10) !== Math.floor((crazyMeter - amount) / 10)) createBackgroundPattern(); const rainbowThreshold = 80; const bodyClassList = document.body.classList; if (crazyMeter > rainbowThreshold && !bodyClassList.contains('rainbow-bg')) bodyClassList.add('rainbow-bg'); else if (crazyMeter <= rainbowThreshold && bodyClassList.contains('rainbow-bg')) { bodyClassList.remove('rainbow-bg'); document.body.style.background = '#111'; } const distortThreshold = 90; const canvasClassList = canvas.classList; if (crazyMeter > distortThreshold && !canvasClassList.contains('crazy-distort')) canvasClassList.add('crazy-distort'); else if (crazyMeter <= distortThreshold && canvasClassList.contains('crazy-distort')) canvasClassList.remove('crazy-distort'); }
+        function createSpeechBubble(x, y, text) { /* Modifié pour positionnement correct */ const bubble = document.createElement('div'); bubble.className = 'speech-bubble'; bubble.textContent = text; // Positionner le coin supérieur gauche, puis translater pour centrer horizontalement et placer au-dessus
+         bubble.style.left = `${x}px`; bubble.style.top = `${y}px`; bubble.style.transform = 'translate(-50%, -120%)'; // Translater de 50% gauche, 120% haut
+         document.body.appendChild(bubble); speechBubbles.push(bubble); setTimeout(() => { if(bubble.parentNode) bubble.parentNode.removeChild(bubble); speechBubbles = speechBubbles.filter(b => b !== bubble); }, 3000); }
+        function levelUp() { /* Identique à la pensée précédente */ level++; scoreNeededForNextLevel += LEVEL_UP_SCORE_BASE * Math.pow(LEVEL_UP_SCORE_INCREMENT, level - 1); gameRunning = false; playSound('levelUp'); let unlockedAbility = null; for (const key in abilities) if (abilities[key].unlockedAt === level) { unlockedAbility = abilities[key]; break; } if (unlockedAbility) { if (newAbilityName) newAbilityName.textContent = unlockedAbility.name; if (abilityDescription) abilityDescription.textContent = unlockedAbility.description; if (levelUpScreen) levelUpScreen.classList.remove('hidden'); } else { createSpeechBubble(player.x, player.y - 50, `NIVEAU ${level} ATTEINT!`); setTimeout(continueGameAfterLevelUp, 1500); } updateAbilitiesUI(); }
+        function useAbility(abilityKey) { /* Identique à la pensée précédente, avec zone chaos adaptée */ const ability = abilities[abilityKey]; if (!ability || !ability.ready || ability.unlockedAt > level || !gameRunning) return; console.log(`Utilisation de: ${ability.name}`); ability.ready = false; ability.lastUsed = Date.now(); playSound(ability.sound || 'powerup'); createSpeechBubble(player.x, player.y - 60, `${ability.name} ACTIVÉ!`); if (abilityKey === 'superBlast') { for (let i = enemies.length - 1; i >= 0; i--) { score += 50; createExplosion(enemies[i].x + enemies[i].width / 2, enemies[i].y + enemies[i].height / 2, enemies[i].color, enemies[i].width); enemies.splice(i, 1); } updateScore(); createShockwave(player.x, player.y); } else if (abilityKey === 'timeWarp') { ability.active = true; canvas.classList.add('time-warp-effect'); ability.activeTimerId = setTimeout(() => { ability.active = false; canvas.classList.remove('time-warp-effect'); createSpeechBubble(player.x, player.y - 50, "Time Warp Terminé"); }, 5000); } else if (abilityKey === 'chaosZone') { ability.active = true; const pointsGained = Math.floor(crazyMeter * 5); score += pointsGained; updateScore(); const zoneId = Date.now() + Math.random(); // ID unique
+            ability.particleId = zoneId; createExplosion(player.x, player.y, 'rgba(150, 0, 255, 0.2)', 150, 1); // Crée la particule via createExplosion
+             increaseCrazyMeter(-crazyMeter); // Vidange après création particule
+             ability.activeTimerId = setTimeout(() => { // Le timeout pour désactiver active est indépendant de la vie de la particule
+                 if(ability.active) { // Ne désactiver que si c'est toujours actif
+                    // La désactivation se fait maintenant dans l'update de la particule chaosZone
+                    // createSpeechBubble(player.x, player.y - 50, "Chaos Zone Terminée");
+                 }
+             }, 10000); } ability.timerId = setTimeout(() => { ability.ready = true; ability.timerId = null; updateAbilitiesUI(); console.log(`${ability.name} est prêt!`); }, ability.cooldown); updateAbilitiesUI(); }
+        function createShockwave(x, y, count = 20) { /* Identique */ for (let i = 0; i < count; i++) { const angle = (i / count) * Math.PI * 2; explosions.push({ x: x, y: y, size: 5, life: 40, maxLife: 40, remove: false, vx: Math.cos(angle) * (8 + Math.random() * 4), vy: Math.sin(angle) * (8 + Math.random() * 4), color: `hsl(${(i * 360/count + Date.now()/10)%360}, 100%, 60%)`, friction: 0.96, draw() { ctx.save(); ctx.globalAlpha = this.life/this.maxLife; ctx.fillStyle=this.color; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill(); ctx.restore();}, update(dtFactor) { this.vx*=Math.pow(this.friction,dtFactor); this.vy*=Math.pow(this.friction,dtFactor); this.x+=this.vx*dtFactor; this.y+=this.vy*dtFactor; this.life-=dtFactor; if(this.life<=0) this.remove=true;} }); } }
+        function bossDefeated() { /* Fonction pour gérer la défaite du boss */
+            console.log("Boss Vaincu!");
+            playSound('bossDefeat');
+            score += (boss.maxHealth || 1000) * level * player.scoreMultiplier; // Gros bonus score
+            updateScore();
+            createExplosion(boss.x + boss.width/2, boss.y + boss.height/2, boss.color, boss.width * 1.5, 200); // Grosse explosion
+            createSpeechBubble(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, `${boss.name} VAINCU! SCORE +${(boss.maxHealth || 1000) * level}!`);
+            boss = null;
+            bossActive = false;
+            if (bossHealthContainer) bossHealthContainer.classList.add('hidden');
+            // Faire tomber des powerups?
+            for(let i=0; i< 3 + level; i++) {
+                spawnPowerup();
+            }
+            increaseCrazyMeter(-15); // Un peu de calme après la tempête
+        }
+
+
+        // --- UI Update Functions ---
+        function updateScore() { if(scoreDisplay) scoreDisplay.textContent = score; }
+        function updateLives() { if(livesDisplay) livesDisplay.textContent = lives > 0 ? '❤️'.repeat(lives) : '💔'; }
+        function updateCrazyMeterDisplay() { /* Identique à la pensée précédente */ if (!crazyMeterDisplay) return; const roundedMeter = Math.floor(crazyMeter); crazyMeterDisplay.textContent = `${roundedMeter}%`; const hue = 120 - roundedMeter * 1.2; crazyMeterDisplay.style.color = `hsl(${hue}, 100%, 50%)`; crazyMeterDisplay.style.textShadow = roundedMeter > 60 ? `0 0 8px hsl(${hue}, 100%, 50%)` : 'none'; }
+        function updateAbilitiesUI() { /* Identique à la pensée précédente */ if (!abilityBar) return; let anyAbilityUnlocked = false; Object.values(abilities).forEach(ability => { if (level >= ability.unlockedAt) { anyAbilityUnlocked = true; if (ability.containerElement) ability.containerElement.style.display = 'flex'; if (ability.ready) { if(ability.buttonElement) ability.buttonElement.classList.remove('ability-cooldown'); if(ability.cooldownElement) { ability.cooldownElement.textContent = "READY"; ability.cooldownElement.style.color = '#00ff00'; } } else { if(ability.buttonElement) ability.buttonElement.classList.add('ability-cooldown'); const remaining = Math.max(0, Math.ceil((ability.cooldown - (Date.now() - ability.lastUsed)) / 1000)); if(ability.cooldownElement) { ability.cooldownElement.textContent = `${remaining}s`; ability.cooldownElement.style.color = '#ff0000'; } } } else if (ability.containerElement) ability.containerElement.style.display = 'none'; }); abilityBar.classList.toggle('hidden', !anyAbilityUnlocked || !gameRunning); }
+
+
+        // --- Game Over and Restart ---
+        function gameOver() { /* Identique à la pensée précédente */ console.log("Game Over Exécuté"); gameRunning = false; if (animationFrameId) cancelAnimationFrame(animationFrameId); animationFrameId = null; if (finalScore) finalScore.textContent = score; if (crazyLevel) crazyLevel.textContent = `${Math.floor(crazyMeter)}%`; const titleClassBase = "text-4xl md:text-6xl font-bold mb-6"; if (gameMode === 'crazy') { if(gameOverTitle) { gameOverTitle.textContent = "LA FOLIE VOUS A EU!"; gameOverTitle.className = `${titleClassBase} rainbow-text`; } } else { if(gameOverTitle) { gameOverTitle.textContent = "VOUS AVEZ PERDU!"; gameOverTitle.className = `${titleClassBase} text-red-400 neon-text`; } } if(abilityBar) abilityBar.classList.add('hidden'); if(gameOverScreen) gameOverScreen.classList.remove('hidden'); if(player) createExplosion(player.x, player.y, player.color, 50, 100); // Vérifier si player existe
+         playSound('gameover'); if (score > highScores[gameMode]) { highScores[gameMode] = score; saveHighScores(); createSpeechBubble(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 3, `NOUVEAU RECORD (${gameMode.toUpperCase()})!`); } updateHighScoresDisplay(); canvas.classList.remove('crazy-distort', 'time-warp-effect'); document.body.classList.remove('rainbow-bg'); document.body.style.background = '#111';
+         // Nettoyer les timers restants des abilités
+         Object.values(abilities).forEach(ability => { if (ability.timerId) clearTimeout(ability.timerId); if (ability.activeTimerId) clearTimeout(ability.activeTimerId); });
+        }
+        function restartGame() { /* Identique */ console.log("Redémarrage..."); if(gameOverScreen) gameOverScreen.classList.add('hidden'); startGame(gameMode); }
+        function showMainMenu() { /* Identique */ console.log("Affichage Menu Principal"); gameRunning = false; if (animationFrameId) cancelAnimationFrame(animationFrameId); animationFrameId = null; if(gameOverScreen) gameOverScreen.classList.add('hidden'); if(levelUpScreen) levelUpScreen.classList.add('hidden'); if(bossHealthContainer) bossHealthContainer.classList.add('hidden'); if(abilityBar) abilityBar.classList.add('hidden'); if(startScreen) startScreen.classList.remove('hidden'); updateHighScoresDisplay(); canvas.classList.remove('crazy-distort', 'time-warp-effect'); document.body.classList.remove('rainbow-bg'); document.body.style.background = '#111'; if(ctx) { ctx.fillStyle='#111'; ctx.fillRect(0,0,CANVAS_WIDTH, CANVAS_HEIGHT); }
+        // Nettoyer les timers restants des abilités
+         Object.values(abilities).forEach(ability => { if (ability.timerId) clearTimeout(ability.timerId); if (ability.activeTimerId) clearTimeout(ability.activeTimerId); });
+        }
+
+
+        // --- Sound Function (Utilise audioContext global) ---
+        function playSound(type) {
+            if (!audioContext || audioContext.state !== 'running') return;
+             // Récupérer définition du son... (identique à la pensée précédente)
+             const sounds = { 'shoot': { freq: crazyMeter < 40 ? 880 : 660 + Math.random()*600, freqEndMult: 0.8, duration: 0.05 + crazyMeter/1500, vol: 0.3 + crazyMeter/300, type: crazyMeter < 60 ? 'triangle' : 'sawtooth' }, 'explosion': { freq: 60 + Math.random()*80, freqEndMult: 0.2, duration: 0.3 + Math.random()*0.3, vol: 0.7 + Math.random()*0.2, type: 'sine' }, 'powerup': { freq: [659, 784, 988][Math.floor(Math.random()*3)], freqEndMult: 1.2, duration: 0.25, vol: 0.6, type: 'sine', attack: 0.05 }, 'gameover': { freq: 110, freqEndMult: 0.3, duration: 1.8, vol: 0.8, type: 'sawtooth' }, 'bossShoot': { freq: 70 + Math.random()*40, freqEndMult: 1, duration: 0.4, vol: 0.6, type: 'square' }, 'superBlast': { freq: 110, freqEndMult: 0.5, duration: 0.7, vol: 0.9, type: 'sawtooth', decay: 0.5 }, 'timeWarp': { freq: 200, freqEndMult: 1, duration: 1.5, vol: 0.7, type: 'sine', modFreq: 0.8, modGain: 80 }, 'chaosZone': { freq: 900, freqEndMult: 1, duration: 1.2, vol: 0.7, type: 'sine', filterSweep: true }, 'levelUp': { notes: [659, 784, 1046, 880, 0, 1046], noteDur: 0.15, vol: 0.5, type: 'triangle' }, 'playerHit': { freq: 200, freqEndMult: 0.5, duration: 0.4, vol: 0.9, type: 'square' }, 'hit': { freq: 400 + Math.random()*100, freqEndMult: 0.9, duration: 0.08, vol: 0.4, type: 'square' }, 'shieldHit': { freq: 1500, freqEndMult: 0.5, duration: 0.1, vol: 0.5, type: 'triangle' }, 'shieldBreak': { freq: 300, freqEndMult: 0.2, duration: 0.6, vol: 0.8, type: 'sawtooth' }, 'chaosAbsorb': { freq: 1200, freqEndMult: 1.5, duration: 0.15, vol: 0.4, type: 'sine' }, 'bossSpawn': { freq: 80, freqEndMult: 1.5, duration: 2.0, vol: 0.9, type: 'sawtooth', attack: 0.5 }, 'bossHit': { freq: 250, freqEndMult: 1, duration: 0.1, vol: 0.7, type: 'square' }, 'bossDefeat': { notes: [1046, 880, 784, 659, 0, 523], noteDur: 0.2, vol: 0.9, type: 'sawtooth' }, 'enemyShoot': { freq: 1000 + Math.random()*500, freqEndMult: 0.7, duration: 0.08, vol: 0.25, type: 'triangle'}, };
+             const sound = sounds[type]; if (!sound) return;
+             try { /* Identique à la pensée précédente pour jouer le son (notes ou simple) */ if (sound.notes) { let time = audioContext.currentTime; sound.notes.forEach(noteFreq => { if (noteFreq > 0) { const osc = audioContext.createOscillator(); const gn = audioContext.createGain(); osc.connect(gn); gn.connect(audioContext.destination); osc.type = sound.type || 'sine'; osc.frequency.setValueAtTime(noteFreq, time); gn.gain.setValueAtTime(0, time); gn.gain.linearRampToValueAtTime(sound.vol || 0.5, time + 0.01); gn.gain.linearRampToValueAtTime(0, time + sound.noteDur * 0.9); osc.start(time); osc.stop(time + sound.noteDur); } time += sound.noteDur; }); } else { const osc = audioContext.createOscillator(); const gainNode = audioContext.createGain(); let lastNode = osc; osc.type = sound.type || 'sine'; osc.frequency.setValueAtTime(sound.freq || 440, audioContext.currentTime); let freqEnd = (sound.freqEndMult !== undefined) ? (sound.freq || 440) * sound.freqEndMult : (sound.freq || 440); let duration = sound.duration || 0.1; if (Math.abs(freqEnd - (sound.freq || 440)) > 1) { // Check if ramp is needed
+                 // Use exponential ramp for frequencies, it sounds more natural
+                 osc.frequency.exponentialRampToValueAtTime(Math.max(20, freqEnd), audioContext.currentTime + duration * 0.8);
+             } else {
+                // If no significant change, just hold the frequency
+                osc.frequency.setValueAtTime(sound.freq || 440, audioContext.currentTime + duration);
+             }
+             if(sound.filterSweep) { const filter = audioContext.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.setValueAtTime(5000, audioContext.currentTime); lastNode.connect(filter); lastNode = filter; filter.frequency.exponentialRampToValueAtTime(100, audioContext.currentTime + duration); } if(sound.modFreq) { const mod = audioContext.createOscillator(); const modGain = audioContext.createGain(); mod.frequency.value = sound.modFreq; modGain.gain.value = sound.modGain || 50; mod.connect(modGain); modGain.connect(osc.frequency); mod.start(audioContext.currentTime); mod.stop(audioContext.currentTime + duration); } lastNode.connect(gainNode); gainNode.connect(audioContext.destination); let vol = sound.vol !== undefined ? sound.vol : 0.5; const attackTime = sound.attack || 0.005; const decayTime = sound.decay; gainNode.gain.setValueAtTime(0, audioContext.currentTime); gainNode.gain.linearRampToValueAtTime(vol, audioContext.currentTime + attackTime); if(decayTime) { gainNode.gain.linearRampToValueAtTime(vol * 0.5, audioContext.currentTime + attackTime + decayTime); gainNode.gain.linearRampToValueAtTime(0.0001, audioContext.currentTime + duration); } else gainNode.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + duration); osc.start(audioContext.currentTime); osc.stop(audioContext.currentTime + duration + 0.05); } }
+             catch(e) { console.error(`Erreur son ${type}:`, e); }
+        }
+
+
+        // --- Global Effects ---
+        function applyCrazyEffects() { /* Identique à la pensée précédente */ if (!ctx) return; if (crazyMeter < 30) { ctx.setTransform(1,0,0,1,0,0); return; } if (crazyMeter > 50 && Math.random() < 0.05) { const shakeIntensity = crazyMeter / 15; const tx = (Math.random() - 0.5) * shakeIntensity; const ty = (Math.random() - 0.5) * shakeIntensity; ctx.translate(tx, ty); } if (crazyMeter > 70) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = `hsla(${(Date.now() / 30) % 360}, 100%, 50%, 0.05)`; ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT); ctx.restore(); } /* Glitch/Scanlines omis pour perf */ }
+
+
+        // --- Start Initialization Process ---
+        // Utiliser DOMContentLoaded pour s'assurer que le HTML est prêt
+        document.addEventListener('DOMContentLoaded', init);
+
+    </script>
+</body>
+</html>
