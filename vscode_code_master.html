@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeMaster - Smart VSCode Extension</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .slide-in {
+            animation: slideIn 0.3s ease-out forwards;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in forwards;
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        .vscode-dark {
+            --bg-primary: #1e1e1e;
+            --bg-secondary: #252525;
+            --bg-tertiary: #2d2d2d;
+            --text-primary: #d4d4d4;
+            --text-secondary: #858585;
+            --accent-blue: #007acc;
+            --accent-green: #379c37;
+            --accent-orange: #ff9900;
+            --accent-purple: #9a50b6;
+            --accent-red: #f14c4c;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background-color: #4a4a4a;
+            border-radius: 3px;
+        }
+        
+        .code-line:hover {
+            background-color: rgba(60, 60, 60, 0.5);
+        }
+        
+        .active-file {
+            background-color: var(--bg-tertiary) !important;
+        }
+        
+        .code-tag {
+            color: #569cd6;
+        }
+        
+        .code-attr {
+            color: #9cdcfe;
+        }
+        
+        .code-string {
+            color: #ce9178;
+        }
+        
+        .code-comment {
+            color: #6a9955;
+            font-style: italic;
+        }
+        
+        .badge {
+            font-size: 0.65rem;
+            padding: 0.15rem 0.4rem;
+            border-radius: 0.25rem;
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1rem;
+            background: #ffffff;
+            animation: blink 1s step-end infinite;
+            position: relative;
+            top: 0.2rem;
+        }
+
+        @keyframes blink {
+            from, to { opacity: 1; }
+            50% { opacity: 0; }
+        }
+    </style>
+</head>
+<body class="vscode-dark bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans overflow-hidden">
+    <div class="flex flex-col h-screen">
+        <!-- Toolbar -->
+        <div class="flex items-center justify-between px-4 py-2 border-b border-[var(--bg-tertiary)]">
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center">
+                    <i class="fas fa-cube text-[var(--accent-blue)] text-xl mr-2"></i>
+                    <span class="font-semibold">CodeMaster</span>
+                </div>
+                <div class="flex space-x-2 text-sm">
+                    <button class="px-3 py-1 rounded hover:bg-[var(--bg-secondary)]">File</button>
+                    <button class="px-3 py-1 rounded hover:bg-[var(--bg-secondary)]">Edit</button>
+                    <button class="px-3 py-1 rounded hover:bg-[var(--bg-secondary)]">View</button>
+                    <button class="px-3 py-1 rounded hover:bg-[var(--bg-secondary)]">Run</button>
+                    <button class="px-3 py-1 rounded hover:bg-[var(--bg-secondary)]">Help</button>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-xs bg-[var(--accent-purple)] rounded px-1.5 py-0.5">AI</span>
+                    <span class="text-xs">CodeMaster Pro</span>
+                </div>
+                <div class="relative">
+                    <label class="inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="expertToggle" class="sr-only peer">
+                        <div class="relative w-12 h-6 bg-gray-700 peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--accent-blue)]"></div>
+                        <span class="ms-3 text-sm font-medium" id="modeLabel">Intuitive Mode</span>
+                    </label>
+                </div>
+                <button class="p-1 rounded-full hover:bg-[var(--bg-secondary)] relative">
+                    <i class="fas fa-cog text-[var(--text-secondary)]"></i>
+                    <span class="absolute top-0 right-0 h-2 w-2 rounded-full bg-[var(--accent-orange)]"></span>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="flex flex-1 overflow-hidden">
+            <!-- Sidebar -->
+            <div class="w-56 bg-[var(--bg-secondary)] border-r border-[var(--bg-tertiary)] flex flex-col">
+                <div class="p-2 border-b border-[var(--bg-tertiary)]">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <i class="fas fa-file-code text-[var(--accent-blue)]"></i>
+                            <span class="font-medium">Explorer</span>
+                        </div>
+                        <div class="flex space-x-1">
+                            <button class="p-1 hover:bg-[var(--bg-tertiary)] rounded">
+                                <i class="fas fa-ellipsis-h text-xs"></i>
+                            </button>
+                            <button class="p-1 hover:bg-[var(--bg-tertiary)] rounded">
+                                <i class="fas fa-times text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex-1 overflow-y-auto scrollbar-thin">
+                    <div class="py-2">
+                        <div class="px-2 py-1 flex items-center hover:bg-[var(--bg-tertiary)] cursor-pointer">
+                            <i class="far fa-folder-open text-[var(--accent-blue)] mr-2"></i>
+                            <span>CodeMaster Project</span>
+                        </div>
+                        <div class="pl-6">
+                            <div class="px-2 py-1 flex items-center hover:bg-[var(--bg-tertiary)] cursor-pointer active-file">
+                                <i class="far fa-file-alt text-[var(--accent-blue)] mr-2"></i>
+                                <span>index.html</span>
+                                <span class="ml-auto text-xs text-[var(--text-secondary)]">1kb</span>
+                            </div>
+                            <div class="px-2 py-1 flex items-center hover:bg-[var(--bg-tertiary)] cursor-pointer">
+                                <i class="far fa-file-alt text-[var(--accent-orange)] mr-2"></i>
+                                <span>styles.css</span>
+                                <span class="ml-auto text-xs text-[var(--text-secondary)]">2.5kb</span>
+                            </div>
+                            <div class="px-2 py-1 flex items-center hover:bg-[var(--bg-tertiary)] cursor-pointer">
+                                <i class="far fa-file-alt text-[var(--accent-purple)] mr-2"></i>
+                                <span>script.js</span>
+                                <span class="ml-auto text-xs text-[var(--text-secondary)]">3.1kb</span>
+                            </div>
+                            <div class="px-2 py-1 flex items-center hover:bg-[var(--bg-tertiary)] cursor-pointer">
+                                <i class="far fa-file-alt text-[var(--text-secondary)] mr-2"></i>
+                                <span>README.md</span>
+                            </div>
+                        </div>
+                        <div class="px-2 py-1 flex items-center hover:bg-[var(--bg-tertiary)] cursor-pointer mt-2">
+                            <i class="fas fa-search text-[var(--text-secondary)] mr-2"></i>
+                            <span>Search</span>
+                        </div>
+                        <div class="px-2 py-1 flex items-center hover:bg-[var(--bg-tertiary)] cursor-pointer">
+                            <i class="fas fa-code-branch text-[var(--text-secondary)] mr-2"></i>
+                            <span>Source Control</span>
+                            <span class="ml-auto text-xs bg-[var(--accent-green)] text-white badge">3</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-2 border-t border-[var(--bg-tertiary)]">
+                    <div class="flex items-center space-x-2 mb-2">
+                        <i class="fas fa-magic text-[var(--accent-green)]"></i>
+                        <span class="font-medium">CodeMaster Tools</span>
+                    </div>
+                    <div class="space-y-1 text-sm">
+                        <button class="w-full text-left px-2 py-1 rounded hover:bg-[var(--bg-tertiary)] flex items-center">
+                            <i class="fas fa-lightbulb text-[var(--accent-orange)] mr-2"></i>
+                            <span>Smart Suggestions</span>
+                        </button>
+                        <button class="w-full text-left px-2 py-1 rounded hover:bg-[var(--bg-tertiary)] flex items-center">
+                            <i class="fas fa-robot text-[var(--accent-blue)] mr-2 pulse"></i>
+                            <span>AI Assistant</span>
+                            <span class="ml-auto text-xs bg-[var(--accent-red)] text-white badge">New</span>
+                        </button>
+                        <button class="w-full text-left px-2 py-1 rounded hover:bg-[var(--bg-tertiary)] flex items-center">
+                            <i class="fas fa-tasks text-[var(--accent-green)] mr-2"></i>
+                            <span>Task Runner</span>
+                        </button>
+                        <button class="w-full text-left px-2 py-1 rounded hover:bg-[var(--bg-tertiary)] flex items-center">
+                            <i class="fas fa-shield-alt text-[var(--accent-purple)] mr-2"></i>
+                            <span>Security Scan</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Editor Area -->
+            <div class="flex-1 flex flex-col overflow-hidden">
+                <!-- Tabs -->
+                <div class="flex border-b border-[var(--bg-tertiary)]">
+                    <div class="px-3 py-2 border-r border-[var(--bg-tertiary)] flex items-center bg-[var(--bg-primary)]">
+                        <i class="far fa-file-alt text-[var(--text-secondary)] mr-2"></i>
+                        <span>index.html</span>
+                        <button class="ml-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="px-3 py-2 border-r border-[var(--bg-tertiary)] flex items-center bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] cursor-pointer">
+                        <i class="far fa-file-alt text-[var(--text-secondary)] mr-2"></i>
+                        <span>styles.css</span>
+                        <span class="ml-2 text-xs text-[var(--text-secondary)]">*</span>
+                    </div>
+                    <div class="px-3 py-2 border-r border-[var(--bg-tertiary)] flex items-center bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] cursor-pointer">
+                        <i class="far fa-file-alt text-[var(--text-secondary)] mr-2"></i>
+                        <span>script.js</span>
+                    </div>
+                    <div class="flex-1 border-r border-[var(--bg-tertiary)] flex items-center justify-end px-2">
+                        <button class="p-1 hover:bg-[var(--bg-tertiary)] rounded">
+                            <i class="fas fa-plus text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Editor Content -->
+                <div class="flex-1 flex overflow-hidden">
+                    <!-- Code Editor -->
+                    <div class="flex-1 overflow-hidden">
+                        <div class="h-full flex flex-col">
+                            <div class="flex-1 overflow-auto scrollbar-thin">
+                                <div class="font-mono text-sm">
+                                    <div class="flex code-line hover:bg-[var(--bg-tertiary)]">
+                                        <span class="text-[var(--text-secondary)] w-8 text-right pr-2 select-none">1</span>
+                                        <span class="code-tag">&lt;!DOCTYPE html&gt;</span>
+                                    </div>
+                                    <div class="flex code-line hover:bg-[var(--bg-tertiary)]">
+                                        <span class="text-[var(--text-secondary)] w-8 text-right pr-2 select-none">2</span>
+                                        <span class="code-tag">&lt;html</span> <span class="code-attr">lang=</span><span class="code-string">"en"</span><span class="code-tag">&gt;</span>
+                                    </div>
+                                    <div class="flex code-line hover:bg-[var(--bg-tertiary)]">
+                                        <span class="text-[var(--text-secondary)] w-8 text-right pr-2 select-none">3</span>
+                                        <span class="code-tag">&lt;head&gt;</span>
+                                    </div>
+                                    <div class="flex code-line hover:bg-[var(--bg-tertiary)]">
+                                        <span class="text-[var(--text-secondary)] w-8 text-right pr-2 select-none">4</span>
+                                        <span class="px-4 code-tag">&lt;meta</span> <span class="code-attr">charset=</span><span class="code-string">"UTF-8"</span><span class="code-tag">&gt;</span>
+                                    </div>
+                                    <div class="flex code-line hover:bg-[var(--bg-tertiary)]">
+                                        <span class="text-[var(--text-secondary)] w-8 text-right pr-2 select-none">5</span>
+                                        <span class="px-4 code-tag">&lt;meta</span> <span class="code-attr">name=</span><span class="code-string">"viewport"</span> <span class="code-attr">content=</span><span class="code-string">"width=device-width, initial-scale=1.0"</span><span class="code-tag">&gt;</span>
+                                        <button class="ml-2 p-1 bg-[var(--accent-blue)] text-white rounded text-xs hover:opacity-90" onclick="optimizeViewport()">Optimize</button>
+                                    </div>
+                                    <div class="flex code-line hover:bg-[var(--bg-tertiary)]">
+                                        <span class="text-[var(--text-secondary)] w-8 text-right pr-2 select-none">6</span>
+                                        <span class="px-4 code-tag">&lt;title&gt;</span><span id="titleEditor">My Awesome Website</span><span class="code-tag">&lt;/title&gt;</span>
+                                    </div>
+                                    <div class="flex code-line hover:bg-[var(--bg-tertiary)]">
+                                        <span class="text-[var(--text-secondary)] w-8 text-right pr-2 select-none">7</span>
+                                        <span class="px-4 code-tag">&lt;link</span> <span class="code-attr">rel=</span><span class="code-string">"stylesheet"</span> <span class="code-attr">href=</span><span class="code-string">"styles.css"</span><span class="code-tag">&gt;</span>
+                                    </div>
+                                    <div class="flex code-line hover:bg-[var(--bg-tertiary)]">
+                                        <span class="text-[var(--text-secondary)] w-8 text-right pr-2 select-none">8</span>
+                                        <span class="px-4 code-tag">&lt;style&gt;</span>
+                                    </div>
+                                    <div class="flex code-line hover:bg-[var(--bg-tertiary)] opacity-70">
+                                        <span class="text-[var(--text-secondary)] w-8 text-right pr-2 select-none">9</span>
+                                        <span class="px-8 code-comment">/* CSS goes here */</span>
+                                    </div>
+                                    <div class="flex code-line hover:bg-[var(--bg-tertiary)]">
+                                        <span class="text-[var(--text-secondary)] w-8 text-right pr-2 select-none">10</span>
+                                        <span class="px-4 code-tag">&lt;/style&gt;</span>
+                                    </div>
+                                    <div class="flex code-line hover:bg-[var(--bg-tertiary)]">
+                                        <span class="text-[var(--text-secondary)] w-8 text-right pr-2 select-none">11</span>
+                                        <span class="code-tag">&lt;/head&gt;</span>
+                                    </div>
+                                    <div class="flex code-line hover:bg-[var(--bg-tertiary)]">
+                                        <span class="text-[var(--text-secondary)] w-8 text-right pr-2 select-none">12</span>
+                                        <span class="code-tag">&lt;body&gt;</span>
+                                    </div>
+                                    <div class="flex code-line hover:bg-[var(--bg-tertiary)]">
+                                        <span class="text-[var(--text-secondary)] w-8 text-right pr-2 select-none">13</span>
+                                        <span class="px-4 code-tag">&lt;div</span> <span class="code-attr">class=</span><span class="code-string">"container"</span><span class="code-tag">&gt;</span>
+                                    </div>
+                                    <div class="flex code-line hover:bg-[var(--bg-tertiary)] opacity-70">
+                                        <span class="text-[var(--text-secondary)] w-8 text-right pr-2 select-none">14</span>
+                                        <span class="px-8 code-comment">&lt;!-- Your content goes here --&gt;</span>
+                                        <button class="ml-2 p-1 bg-[var(--accent-orange)] text-white rounded text-xs hover:opacity-90" onclick="insertTemplate()">Insert Template</button>
+                                    </div>
+                                    <div class="flex code-line hover:bg-[var(--bg-tertiary)]">
+                                        <span class="text-[var(--text-secondary)] w-8 text-right pr-2 select-none">15</span>
+                                        <span class="px-4 code-tag">&lt;/div&gt;</span>
+                                    </div>
+                                    <div class="flex code-line hover:bg-[var(--bg-tertiary)]">
+                                        <span class="text-[var(--text-secondary)] w-8 text-right pr-2 select-none">16</span>
+                                        <span class="px-4 code-tag">&lt;script</span> <span class="code-attr">src=</span><span class="code-string">"script.js"</span><span class="code-tag">&gt;&lt;/script&gt;</span>
+                                    </div>
+                                    <div class="flex code-line hover:bg-[var(--bg-tertiary)]">
+                                        <span class="text-[var(--text-secondary)] w-8 text-right pr-2 select-none">17</span>
+                                        <span class="code-tag">&lt;/body&gt;</span>
+                                    </div>
+                                    <div class="flex code-line hover:bg-[var(--bg-tertiary)]">
+                                        <span class="text-[var(--text-secondary)] w-8 text-right pr-2 select-none">18</span>
+                                        <span class="code-tag">&lt;/html&gt;</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="border-t border-[var(--bg-tertiary)] p-2 text-xs text-[var(--text-secondary)] flex justify-between">
+                                <div>
+                                    <span>HTML</span>
+                                    <span class="mx-2">|</span>
+                                    <span>UTF-8</span>
+                                    <span class="mx-2">|</span>
+                                    <span>LF</span>
+                                    <span class="mx-2">|</span>
+                                    <span>Ln 10, Col 23</span>
+                                </div>
+                                <div>
+                                    <span class="text-[var(--accent-green)] mr-2">✓ No issues detected</span>
+                                    <i class="fas fa-cloud-upload-alt mr-2"></i>
+                                    <span>Saved</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Panel Area -->
+                    <div class="w-72 border-l border-[var(--bg-tertiary)] flex flex-col overflow-hidden transition-all duration-300" id="panelArea">
+                        <!-- Tabs -->
+                        <div class="flex border-b border-[var(--bg-tertiary)]">
+                            <div id="assistantTab" class="flex-1 py-2 text-center cursor-pointer border-b-2 border-[var(--accent-blue)]">
+                                <i class="fas fa-magic mr-2"></i>
+                                <span>Assistant</span>
+                            </div>
+                            <div id="debugTab" class="flex-1 py-2 text-center cursor-pointer hover:bg-[var(--bg-secondary)]">
+                                <i class="fas fa-bug mr-2"></i>
+                                <span>Debug</span>
+                            </div>
+                            <div id="gitTab" class="flex-1 py-2 text-center cursor-pointer hover:bg-[var(--bg-secondary)]">
+                                <i class="fas fa-code-branch mr-2"></i>
+                                <span>Git</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Panel Content - Intuitive Mode -->
+                        <div class="flex-1 overflow-auto scrollbar-thin p-3" id="intuitivePanel">
+                            <div class="bg-[var(--bg-secondary)] rounded p-3 mb-3">
+                                <div class="text-sm font-medium mb-2 text-[var(--accent-orange)] flex items-center">
+                                    <i class="fas fa-lightbulb mr-2"></i> 
+                                    <span>Smart Suggestions</span>
+                                    <button class="ml-auto text-xs bg-[var(--bg-tertiary)] px-2 py-0.5 rounded hover:bg-[var(--accent-orange)]" onclick="refreshSuggestions()">Refresh</button>
+                                </div>
+                                <div class="space-y-2">
+                                    <div class="p-2 hover:bg-[var(--bg-tertiary)] rounded cursor-pointer border-l-2 border-[var(--accent-green)]" onclick="insertCode('meta-viewport')">
+                                        <div class="text-xs opacity-70">Add responsive meta tag</div>
+                                        <div class="text-sm">&lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;</div>
+                                    </div>
+                                    <div class="p-2 hover:bg-[var(--bg-tertiary)] rounded cursor-pointer border-l-2 border-[var(--accent-blue)]" onclick="insertCode('stylesheet')">
+                                        <div class="text-xs opacity-70">Link CSS file</div>
+                                        <div class="text-sm">&lt;link rel="stylesheet" href="styles.css"&gt;</div>
+                                    </div>
+                                    <div class="p-2 hover:bg-[var(--bg-tertiary)] rounded cursor-pointer border-l-2 border-[var(--accent-purple)]" onclick="insertCode('container')">
+                                        <div class="text-xs opacity-70">Basic page structure</div>
+                                        <div class="text-sm flex items-center">
+                                            <span>&lt;div class="container"&gt;&lt;/div&gt;</span>
+                                            <button class="ml-auto text-xs bg-[var(--accent-purple)] text-white px-2 py-0.5 rounded hover:opacity-90" onclick="insertCode('container')">
+                                                <i class="fas fa-plus mr-1"></i> Insert
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-[var(--bg-secondary)] rounded p-3 mt-4">
+                                <div class="text-sm font-medium mb-2 flex items-center">
+                                    <i class="fas fa-robot text-[var(--accent-blue)] mr-2"></i> 
+                                    <span>AI Assistant</span>
+                                    <span class="ml-auto text-xs bg-[var(--accent-red)] text-white rounded-full px-2 py-0.5">Beta</span>
+                                </div>
+                                <div class="mb-3 text-sm" id="aiResponse">
+                                    <p>I see you're building an HTML page. How can I help you today?</p>
+                                </div>
+                                <div class="space-y-2 mb-4">
+                                    <button class="w-full text-left px-3 py-2 text-sm rounded bg-[var(--bg-tertiary)] hover:bg-[var(--accent-blue)] flex items-center" onclick="handleAiRequest('navigation')">
+                                        <i class="fas fa-code mr-2"></i>
+                                        <span>Add a navigation bar template</span>
+                                    </button>
+                                    <button class="w-full text-left px-3 py-2 text-sm rounded bg-[var(--bg-tertiary)] hover:bg[\var(--accent-blue)] flex items-center" onclick="handleAiRequest('frameworks')">
+                                        <i class="fas fa-paint-brush mr-2"></i>
+                                        <span>Suggest CSS frameworks</span>
+                                    </button>
+                                    <button class="w-full text-left px-3 py-2 text-sm rounded bg-[var(--bg-tertiary)] hover:bg[\var(--accent-blue)] flex items-center" onclick="handleAiRequest('viewport')">
+                                        <i class="fas fa-question-circle mr-2"></i>
+                                        <span>Explain the viewport meta tag</span>
+                                    </button>
+                                </div>
+                                <div class="mt-3">
+                                    <div class="relative">
+                                        <input type="text" id="aiQuery" placeholder="Ask CodeMaster AI anything..." class="w-full px-3 py-2 text-sm rounded bg[\var(--bg-tertiary)] border border[\var(--bg-tertiary)] focus:outline-none focus:border[\var(--accent-blue)] pr-10">
+                                        <button class="absolute right-2 top-2 text[\var(--accent-blue)]" onclick="handleAiQuestion()">
+                                            <i class="fas fa-paper-plane"></i>
+                                        </button>
+                                    </div>
+                                    <div class="text-xs text[\var(--text-secondary)] mt-1">
+                                        Examples: "How to center a div?", "Show me a login form example"
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg[\var(--bg-secondary)] rounded p-3 mt-4">
+                                <div class="text-sm font-medium mb-2 flex items-center">
+                                    <i class="fas fa-tasks text[\var(--accent-green)] mr-2"></i> 
+                                    <span>Quick Actions</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button class="px-2 py-1.5 text-xs rounded bg[\var(--bg-tertiary)] hover:bg[\var(--accent-green)]" onclick="formatDocument()">
+                                        Format Document
+                                    </button>
+                                    <button class="px-2 py-1.5 text-xs rounded bg[\var(--bg-tertiary)] hover:bg[\var(--accent-blue)]" onclick="beautifyHTML()">
+                                        Beautify HTML
+                                    </button>
+                                    <button class="px-2 py-1.5 text-xs rounded bg[\var(--bg-tertiary)] hover:bg[\var(--accent-purple)]" onclick="validateHTML()">
+                                        Validate HTML
+                                    </button>
+                                    <button class="px-2 py-1.5 text-xs rounded bg[\var(--bg-tertiary)] hover:bg[\var(--accent-orange)]" onclick="openPreview()">
+                                        Open Preview
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Panel Content - Expert Mode -->
+                        <div class="flex-1 overflow-auto scrollbar-thin p-3 hidden" id="expertPanel">
+                            <div class="bg[\var(--bg-secondary)] rounded p-3 mb-3">
+                                <div class="text-sm font-medium mb-2 flex items-center">
+                                    <i class="fas fa-fire text[\var(--accent-orange)] mr-2"></i> 
+                                    <span>Performance Analysis</span>
+                                </div>
+                                <div class="space-y-1 text-xs">
+                                    <div class="flex justify-between">
+                                        <span>DOM Complexity:</span>
+                                        <span class="text[\var(--accent-green)]">Low</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Render Blocking:</span>
+                                        <span class="text[\var(--accent-green)]">None</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Accessibility Score:</span>
+                                        <span class="text[\var(--accent-green)]">100%</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>SEO Optimized:</span>
+                                        <span class="text[\var(--accent-green)]">Yes</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Mobile Friendly:</span>
+                                        <span class="text[\var(--accent-green)]">Yes</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="bg[\var(--bg-secondary)] rounded p-3">
+                                <div class="text-sm font-medium mb-2 flex items-center">
+                                    <i class="fas fa-terminal text[\var(--accent-blue)] mr-2"></i> 
+                                    <span>Advanced Actions</span>
+                                </div>
+                                <div class="space-y-2">
+                                    <button class="w-full text-left px-3 py-2 text-xs rounded bg[\var(--bg-tertiary)] hover:bg[\var(--accent-blue)] flex items-center" onclick="analyzeDOM()">
+                                        <i class="fas fa-project-diagram mr-2 text-xs"></i>
+                                        <span>Analyze DOM tree depth</span>
+                                    </button>
+                                    <button class="w-full text-left px-3 py-2 text-xs rounded bg[\var(--bg-tertiary)] hover:bg[\var(--accent-blue)] flex items-center" onclick="generateHTMLReport()">
+                                        <i class="fas fa-file-code mr-2 text-xs"></i>
+                                        <span>Generate semantic HTML report</span>
+                                    </button>
+                                    <button class="w-full text-left px-3 py-2 text-xs rounded bg[\var(--bg-tertiary)] hover:bg[\var(--accent-blue)] flex items-center" onclick="optimizeScriptLoading()">
+                                        <i class="fas fa-bolt mr-2 text-xs"></i>
+                                        <span>Optimize script loading</span>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="bg[\var(--bg-secondary)] rounded p-3 mt-4">
+                                <div class="text-sm font-medium mb-2">
+                                    <i class="fas fa-plug text[\var(--accent-purple)] mr-2"></i>
+                                    <span>API Debugger</span>
+                                </div>
+                                <div class="space-y-3">
+                                    <div>
+                                        <label class="text-xs block mb-1">Endpoint:</label>
+                                        <select class="w-full px-2 py-1 text-xs rounded bg[\var(--bg-tertiary)]" id="apiEndpoint">
+                                            <option>GET /api/data</option>
+                                            <option>POST /api/submit</option>
+                                            <option>DELETE /api/remove</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="text-xs block mb-1">Params:</label>
+                                        <textarea class="w-full px-2 py-1 text-xs rounded bg[\var(--bg-tertiary)] h-16" id="apiParams" placeholder="JSON parameters">{ "id": 123 }</textarea>
+                                    </div>
+                                    <div class="flex space-x-2">
+                                        <button class="w-full px-3 py-2 text-xs bg[\var(--accent-green)] text-white rounded hover:bg-green-600" onclick="executeAPIRequest()">
+                                            <i class="fas fa-play mr-1"></i> Execute
+                                        </button>
+                                        <button class="w-full px-3 py-2 text-xs bg[\var(--bg-tertiary)] rounded hover:bg[\var(--accent-blue)]" onclick="showAPIHistory()">
+                                            <i class="fas fa-history mr-1"></i> History
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Git Panel -->
+                        <div class="flex-1 overflow-auto scrollbar-thin p-3 hidden" id="gitPanel">
+                            <div class="bg[\var(--bg-secondary)] rounded p-3 mb-3">
+                                <div class="text-sm font-medium mb-2 text[\var(--accent-green)] flex items-center">
+                                    <i class="fas fa-code-branch mr-2"></i>
+                                    <span>Changes (3)</span>
+                                    <span class="ml-auto">
+                                        <button class="text-xs bg[\var(--accent-green)] text-white px-2 py-1 rounded hover:opacity-90" onclick="stageAllChanges()">
+                                            Stage All
+                                        </button>
+                                    </span>
+                                </div>
+                                <div class="space-y-2">
+                                    <div class="p-2 rounded bg[\var(--bg-tertiary)]">
+                                        <div class="flex items-center">
+                                            <span class="text-xs mr-3">index.html</span>
+                                            <span class="text-xs text[\var(--text-secondary)]">1 change</span>
+                                            <span class="ml-auto">
+                                                <button class="text-xs bg[\var(--accent-blue)] text-white px-2 py-0.5 rounded hover:opacity-90 mr-1" onclick="stageChange('index.html')">
+                                                    Stage
+                                                </button>
+                                                <button class="text-xs bg-transparent border border[\var(--text-secondary)] text[\var(--text-secondary)] px-2 py-0.5 rounded hover:bg[\var(--bg-tertiary)]" onclick="viewDiff('index.html')">
+                                                    View Changes
+                                                </button>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="p-2 rounded bg[\var(--bg-tertiary)]">
+                                        <div class="flex items-center">
+                                            <span class="text-xs mr-3">styles.css</span>
+                                            <span class="text-xs text[\var(--text-secondary)]">2 changes</span>
+                                            <span class="ml-auto">
+                                                <button class="text-xs bg[\var(--accent-blue)] text-white px-2 py-0.5 rounded hover:opacity-90 mr-1" onclick="stageChange('styles.css')">
+                                                    Stage
+                                                </button>
+                                                <button class="text-xs bg-transparent border border[\var(--text-secondary)] text[\var(--text-secondary)] px-2 py-0.5 rounded hover:bg[\var(--bg-tertiary)]" onclick="viewDiff('styles.css')">
+                                                    View Changes
+                                                </button>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="bg[\var(--bg-secondary)] rounded p-3 mt-4">
+                                <div class="text-sm font-medium mb-2">Commit Message</div>
+                                <textarea class="w-full px-2 py-1 text-xs rounded bg[\var(--bg-tertiary)] h-16 mb-2" id="commitMessage" placeholder="Add a commit message"></textarea>
+                                <button class="w-full px-3 py-2 text-xs bg[\var(--accent-purple)] text-white rounded hover:bg-purple-600" onclick="commitChanges()">
+                                    Commit Staged Changes
+                                </button>
+                                <button class="w-full px-3 py-2 text-xs bg[\var(--bg-tertiary)] rounded mt-2 hover:bg[\var(--accent-green)]" onclick="pushChanges()">
+                                    Push to Remote
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Status Bar -->
+        <div class="bg[\var(--accent-blue)] px-4 py-1 text-xs flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center">
+                    <i class="fas fa-check-circle mr-1"></i>
+                    <span>No Errors</span>
+                </div>
+                <div class="flex items-center">
+                    <i class="fab fa-git-alt mr-1"></i>
+                    <span>main*</span>
+                </div>
+                <div class="flex items-center">
+                    <i class="fas fa-code-branch mr-1"></i>
+                    <span>3 Changes</span>
+                </div>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center">
+                    <i class="fas fa-code mr-1"></i>
+                    <span>HTML</span>
+                </div>
+                <div class="flex items-center">
+                    <i class="fas fa-exchange-alt mr-1"></i>
+                    <span>UTF-8</span>
+                </div>
+                <div class="flex items-center">
+                    <i class="fas fa-feather-alt mr-1"></i>
+                    <span>LF</span>
+                </div>
+                <div class="flex items-center">
+                    <i class="far fa-clock mr-1"></i>
+                    <span id="timeDisplay"></span>
+                </div>
+                <div class="flex items-center">
+                    <i class="fas fa-server mr-1"></i>
+                    <span>Port: 3000</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Toggle between intuitive and expert modes
+        const expertToggle = document.getElementById('expertToggle');
+        const modeLabel = document.getElementById('modeLabel');
+        const intuitivePanel = document.getElementById('intuitivePanel');
+        const expertPanel = document.getElementById('expertPanel');
+        const panelArea = document.getElementById('panelArea');
+        const gitPanel = document.getElementById('gitPanel');
+        
+        expertToggle.addEventListener('change', function() {
+            if (this.checked) {
+                modeLabel.textContent = 'Expert Mode';
+                intuitivePanel.classList.add('hidden');
+                expertPanel.classList.remove('hidden');
+                panelArea.classList.add('slide-in');
+                setTimeout(() => {
+                    panelArea.classList.remove('slide-in');
+                }, 300);
+            } else {
+                modeLabel.textContent = 'Intuitive Mode';
+                expertPanel.classList.add('hidden');
+                intuitivePanel.classList.remove('hidden');
+                panelArea.classList.add('slide-in');
+                setTimeout(() => {
+                    panelArea.classList.remove('slide-in');
+                }, 300);
+            }
+        });
+        
+        // Update time display
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            document.getElementById('timeDisplay').textContent = timeString;
+        }
+        
+        updateTime();
+        setInterval(updateTime, 1000);
+        
+        // Simulate file interactions
+        document.querySelectorAll('.hover\\:bg-\\[var\\(--bg-tertiary\\)\\]').forEach(item => {
+            item.addEventListener('click', function() {
+                // Remove active class from all items
+                document.querySelectorAll('.hover\\:bg-\\[var\\(--bg-tertiary\\)\\]').forEach(i => {
+                    i.classList.remove('active-file');
+                });
+                // Add active class to clicked item
+                this.classList.add('active-file');
+                
+                // Update tab to show the active file
+                const filename = this.textContent.trim();
+                document.querySelector('.font-semibold').textContent = filename;
+                
+                // Make the corresponding tab active
+                document.querySelectorAll('.flex.border-b.border-\\[var\\(--bg-tertiary\\)\\] > div').forEach(tab => {
+                    if (tab.textContent.includes(filename)) {
+                        tab.classList.remove('bg-[var(--bg-secondary)]');
+                        tab.classList.add('bg-[var(--bg-primary)]');
+                    } else {
+                        tab.classList.remove('bg-[var(--bg-primary)]');
+                        tab.classList.add('bg-[var(--bg-secondary)]');
+                    }
+                });
+            });
+        });
+        
+        // Panel tabs
+        const assistantTab = document.getElementById('assistantTab');
+        const debugTab = document.getElementById('debugTab');
+        const gitTab = document.getElementById('gitTab');
+        
+        assistantTab.addEventListener('click', function() {
+            resetPanelTabs();
+            this.classList.add('border-b-2', 'border-[var(--accent-blue)]');
+            
+            if (expertToggle.checked) {
+                intuitivePanel.classList.add('hidden');
+                expertPanel.classList.remove('hidden');
+            } else {
+                expertPanel.classList.add('hidden');
+                intuitivePanel.classList.remove('hidden');
+            }
+            
+            gitPanel.classList.add('hidden');
+        });
+        
+        debugTab.addEventListener('click', function() {
+            resetPanelTabs();
+            this.classList.add('border-b-2', 'border-[var(--accent-orange)]');
+            intuitivePanel.classList.add('hidden');
+            gitPanel.classList.add('hidden');
+            
+            if (expertToggle.checked) {
+                expertPanel.classList.remove('hidden');
+            } else {
+                expertPanel.classList.remove('hidden');
+            }
+        });
+        
+        gitTab.addEventListener('click', function() {
+            resetPanelTabs();
+            this.classList.add('border-b-2', 'border-[var(--accent-green)]');
+            intuitivePanel.classList.add('hidden');
+            expertPanel.classList.add('hidden');
+            gitPanel.classList.remove('hidden');
+        });
+        
+        function resetPanelTabs() {
+            [assistantTab, debugTab, gitTab].forEach(tab => {
+                tab.classList.remove('border-b-2', 'border-[var(--accent-blue)]', 
+                                    'border-[var(--accent-orange)]', 'border-[var(--accent-green)]');
+            });
+        }
+        
+        // Editor functions
+        function optimizeViewport() {
+            showNotification('Viewport settings optimized for mobile devices');
+        }
+        
+        function insertTemplate() {
+            showNotification('Template inserted at cursor position');
+        }
+        
+        function insertCode(type) {
+            let message = '';
+            switch(type) {
+                case 'meta-viewport':
+                    message = 'Viewport meta tag inserted';
+                    break;
+                case 'stylesheet':
+                    message = 'Stylesheet link inserted';
+                    break;
+                case 'container':
+                    message = 'Container div inserted';
+                    break;
+            }
+            showNotification(message);
+        }
+        
+        function formatDocument() {
+            showNotification('Document formatted');
+        }
+        
+        function beautifyHTML() {
+            showNotification('HTML beautified');
+        }
+        
+        function validateHTML() {
+            showNotification('HTML validated - no errors found');
+        }
+        
+        function openPreview() {
+            showNotification('Preview opened in new tab');
+        }
+        
+        function analyzeDOM() {
+            showNotification('DOM tree analyzed - depth: 3 levels');
+        }
+        
+        function generateHTMLReport() {
+            showNotification('Semantic HTML report generated');
+        }
+        
+        function optimizeScriptLoading() {
+            showNotification('Script loading optimized');
+        }
+        
+        function executeAPIRequest() {
+            const endpoint = document.getElementById('apiEndpoint').value;
+            const params = document.getElementById('apiParams').value;
+            showNotification(`API request sent to ${endpoint} with params: ${params}`);
+        }
+        
+        function showAPIHistory() {
+            showNotification('Showing API request history');
+        }
+        
+        function stageAllChanges() {
+            showNotification('All changes staged for commit');
+        }
+        
+        function stageChange(filename) {
+            showNotification(`Changes for ${filename} staged for commit`);
+        }
+        
+        function viewDiff(filename) {
+            showNotification(`Showing changes for ${filename}`);
+        }
+        
+        function commitChanges() {
+            const message = document.getElementById('commitMessage').value;
+            if (message.trim() === '') {
+                alert('Please enter a commit message');
+                return;
+            }
+            showNotification(`Changes committed with message: "${message}"`);
+            document.getElementById('commitMessage').value = '';
+        }
+        
+        function pushChanges() {
+            showNotification('Changes pushed to remote repository');
+        }
+        
+        function refreshSuggestions() {
+            showNotification('Suggestions refreshed');
+        }
+        
+        function handleAiRequest(type) {
+            let response = '';
+            switch(type) {
+                case 'navigation':
+                    response = 'Here is a simple navigation bar template you can use:<br><br>&lt;nav class="navbar"&gt;<br>  &lt;ul&gt;<br>    &lt;li&gt;&lt;a href="#"&gt;Home&lt;/a&gt;&lt;/li&gt;<br>    &lt;li&gt;&lt;a href="#"&gt;About&lt;/a&gt;&lt;/li&gt;<br>    &lt;li&gt;&lt;a href="#"&gt;Contact&lt;/a&gt;&lt;/li&gt;<br>  &lt;/ul&gt;<br>&lt;/nav&gt;';
+                    break;
+                case 'frameworks':
+                    response = 'Here are some popular CSS frameworks:<br><br>1. Bootstrap - Great for responsive design<br>2. Tailwind CSS - Utility-first framework<br>3. Bulma - Pure CSS framework<br>4. Foundation - Professional grade framework';
+                    break;
+                case 'viewport':
+                    response = 'The viewport meta tag controls how a page is displayed on mobile devices. It tells the browser to match the screen\'s width in device-independent pixels and sets the initial zoom level. The standard value "width=device-width, initial-scale=1.0" ensures proper mobile rendering.';
+                    break;
+            }
+            document.getElementById('aiResponse').innerHTML = response;
+        }
+        
+        function handleAiQuestion() {
+            const question = document.getElementById('aiQuery').value;
+            if (question.trim() === '') {
+                alert('Please enter a question');
+                return;
+            }
+            
+            document.getElementById('aiResponse').innerHTML = `<div class="flex items-start">
+                <div class="mr-2 mt-1">
+                    <i class="fas fa-robot text-[var(--accent-blue)]"></i>
+                </div>
+                <div>Processing your question: <strong>${question}</strong><br><br>Based on your HTML document, here's my recommendation: Always make sure to include proper semantic HTML tags and test your page on multiple screen sizes.</div>
+            </div>`;
+            
+            document.getElementById('aiQuery').value = '';
+        }
+        
+        // Helper function to show notifications
+        function showNotification(message) {
+            const notification = document.createElement('div');
+            notification.className = 'fixed top-20 right-4 bg-[var(--bg-secondary)] text-white px-4 py-2 rounded shadow-lg flex items-center fade-in';
+            notification.innerHTML = `<span>${message}</span>`;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.classList.add('fade-out');
+                setTimeout(() => {
+                    notification.remove();
+                }, 500);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
