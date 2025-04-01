@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lego Builder 3D</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        /* Basic Reset and Body Styling */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: stretch; /* Stretch items vertically */
+            min-height: 100vh;
+            background-color: #d0e0f0; /* Lighter blue background */
+            margin: 0;
+            padding: 10px; /* Reduced padding */
+            box-sizing: border-box;
+            gap: 15px; /* Space between controls and canvas */
+            overflow: hidden; /* Prevent body scrollbars */
+        }
+
+        /* Controls Container Styling */
+        #controls {
+            background-color: #ffffff;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 12px; /* Space between control elements */
+            width: 230px; /* Slightly wider */
+            align-items: stretch; /* Make items fill width */
+            flex-shrink: 0; /* Prevent controls from shrinking */
+            max-height: calc(100vh - 20px); /* Limit height */
+            overflow-y: auto; /* Allow scrolling if needed */
+        }
+
+        /* Headings within Controls */
+        #controls h3 {
+            margin: 0 0 10px 0;
+            font-size: 1.1em;
+            color: #333;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        /* Label Styling */
+        #controls label {
+            font-weight: bold;
+            margin-bottom: 3px;
+            font-size: 0.9em;
+            color: #555;
+        }
+
+        /* Button Styling */
+        .control-button, #clear-button {
+            padding: 9px 12px; /* Slightly smaller padding */
+            border: none;
+            border-radius: 8px;
+            background-color: #4a90e2; /* Primary button color */
+            color: white;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px; /* Space between icon and text */
+        }
+
+        .control-button:hover, #clear-button:hover {
+            background-color: #357abd; /* Darker shade on hover */
+        }
+
+        .control-button:active, #clear-button:active {
+            transform: scale(0.98); /* Slight shrink on click */
+        }
+
+        /* Specific Button Styles */
+        #clear-button {
+            background-color: #e94e77; /* Reddish color for clear */
+        }
+        #clear-button:hover {
+            background-color: #c73e63;
+        }
+
+        /* Active Tool Button Styling */
+        .control-button.active {
+            background-color: #357abd;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+
+        /* Block Size Selector Styling */
+        #block-size-selector {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr); /* Two columns */
+            gap: 8px; /* Reduced gap */
+        }
+
+        #block-size-selector button {
+            background-color: #e0e0e0; /* Lighter background for size buttons */
+            color: #333;
+            font-weight: bold;
+        }
+        #block-size-selector button:hover {
+             background-color: #c7c7c7;
+        }
+         #block-size-selector button.active {
+            background-color: #4a90e2; /* Highlight active size */
+            color: white;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.15);
+        }
+
+
+        /* Color Picker Styling */
+        #color-picker {
+            width: 100%; /* Full width */
+            height: 35px; /* Reduced height */
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            cursor: pointer;
+            padding: 0; /* Remove default padding */
+            box-sizing: border-box; /* Include border in width */
+        }
+        #color-picker::-webkit-color-swatch-wrapper { padding: 4px; border-radius: 8px; }
+        #color-picker::-webkit-color-swatch { border: none; border-radius: 4px; }
+        #color-picker::-moz-color-swatch { border: none; border-radius: 4px; }
+
+        /* 3D View Container */
+        #three-container {
+            flex-grow: 1; /* Allow container to grow */
+            height: calc(100vh - 20px); /* Fill available height */
+            position: relative; /* Needed for potential overlays */
+            border-radius: 12px;
+            overflow: hidden; /* Clip the canvas */
+             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Canvas Styling (managed by Three.js) */
+        #three-container canvas {
+            display: block; /* Remove extra space */
+            width: 100%;
+            height: 100%;
+        }
+
+         /* Tool Separator */
+         .tool-separator {
+            border-top: 1px solid #eee;
+            margin: 8px 0;
+         }
+
+         /* Message Box */
+        #message-box {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-size: 0.9em;
+            display: none; /* Hidden by default */
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.5s ease-out;
+        }
+        #message-box.show {
+             display: block;
+             opacity: 1;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="controls">
+        <h3>Controls</h3>
+
+        <label>Tool:</label>
+        <div>
+            <button id="build-tool" class="control-button active" title="Build Tool">
+                <i class="fas fa-hammer"></i> Build
+            </button>
+            <button id="erase-tool" class="control-button" title="Erase Tool">
+                <i class="fas fa-eraser"></i> Erase
+            </button>
+        </div>
+
+        <div class="tool-separator"></div>
+
+        <label for="color-picker">Block Color:</label>
+        <input type="color" id="color-picker" value="#ff0000"> <div class="tool-separator"></div>
+
+        <label>Block Size (Width x Depth):</label>
+        <div id="block-size-selector">
+            <button class="control-button size-button active" data-width="1" data-depth="1">1x1</button>
+            <button class="control-button size-button" data-width="2" data-depth="1">2x1</button>
+            <button class="control-button size-button" data-width="1" data-depth="2">1x2</button>
+            <button class="control-button size-button" data-width="2" data-depth="2">2x2</button>
+            <button class="control-button size-button" data-width="4" data-depth="1">4x1</button>
+            <button class="control-button size-button" data-width="1" data-depth="4">1x4</button>
+            <button class="control-button size-button" data-width="3" data-depth="2">3x2</button>
+            <button class="control-button size-button" data-width="2" data-depth="3">2x3</button>
+        </div>
+
+        <div class="tool-separator"></div>
+
+        <button id="clear-button" title="Clear Scene">
+            <i class="fas fa-trash-alt"></i> Clear All
+        </button>
+
+        <div class="tool-separator"></div>
+         <div style="font-size: 0.8em; color: #666; padding: 5px; border: 1px dashed #ccc; border-radius: 5px;">
+            <p><strong>Controls:</strong></p>
+            <ul>
+                <li><strong>Left Click:</strong> Place/Erase Block</li>
+                <li><strong>Right Click + Drag:</strong> Rotate View</li>
+                <li><strong>Middle Click + Drag:</strong> Pan View</li>
+                <li><strong>Scroll Wheel:</strong> Zoom View</li>
+            </ul>
+         </div>
+    </div>
+
+    <div id="three-container">
+         <div id="message-box">Cannot place block here!</div>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.161.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.161.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        // --- Imports ---
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- Basic Setup ---
+        const container = document.getElementById('three-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xadd8e6); // Light blue background
+
+        const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
+        camera.position.set(15, 20, 25); // Initial camera position
+        camera.lookAt(0, 0, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.shadowMap.enabled = true; // Enable shadows
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.appendChild(renderer.domElement);
+
+        // --- Lighting ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); // Soft white light
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(10, 15, 10);
+        directionalLight.castShadow = true;
+        // Configure shadow properties for better quality
+        directionalLight.shadow.mapSize.width = 1024;
+        directionalLight.shadow.mapSize.height = 1024;
+        directionalLight.shadow.camera.near = 0.5;
+        directionalLight.shadow.camera.far = 50;
+        directionalLight.shadow.camera.left = -20;
+        directionalLight.shadow.camera.right = 20;
+        directionalLight.shadow.camera.top = 20;
+        directionalLight.shadow.camera.bottom = -20;
+        scene.add(directionalLight);
+        // Optional: Add a light helper
+        // const lightHelper = new THREE.DirectionalLightHelper(directionalLight, 5);
+        // scene.add(lightHelper);
+        // const shadowHelper = new THREE.CameraHelper( directionalLight.shadow.camera );
+        // scene.add( shadowHelper );
+
+
+        // --- Controls ---
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true; // Smooth camera movement
+        controls.dampingFactor = 0.1;
+        controls.screenSpacePanning = false; // Pan in plane parallel to ground
+        controls.maxPolarAngle = Math.PI / 2 - 0.05; // Limit looking slightly above horizon
+        controls.minDistance = 5;
+        controls.maxDistance = 100;
+
+        // --- Grid/Ground Plane ---
+        const gridSizeUnits = 1; // Size of one "stud" or grid unit in 3D space
+        const gridDivisions = 40; // Number of grid lines
+        const gridTotalSize = gridDivisions * gridSizeUnits;
+
+        const gridHelper = new THREE.GridHelper(gridTotalSize, gridDivisions, 0xcccccc, 0xcccccc);
+        gridHelper.position.y = -0.01; // Slightly below blocks
+        scene.add(gridHelper);
+
+        // Ground plane for raycasting and shadows
+        const groundGeometry = new THREE.PlaneGeometry(gridTotalSize, gridTotalSize);
+        const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x8fbc8f, side: THREE.DoubleSide }); // DarkSeaGreen
+        const groundPlane = new THREE.Mesh(groundGeometry, groundMaterial);
+        groundPlane.rotation.x = -Math.PI / 2; // Rotate to be horizontal
+        groundPlane.receiveShadow = true; // Allow plane to receive shadows
+        scene.add(groundPlane);
+
+        // --- Block Geometry & Materials ---
+        const blockHeight = 1.2 * gridSizeUnits; // Height of a standard block
+        const studRadius = gridSizeUnits * 0.25;
+        const studHeight = blockHeight * 0.15;
+        const studGeometry = new THREE.CylinderGeometry(studRadius, studRadius, studHeight, 16);
+
+        // Reusable materials map for performance
+        const materials = {};
+        function getMaterial(color) {
+            if (!materials[color]) {
+                materials[color] = new THREE.MeshStandardMaterial({
+                    color: color,
+                    roughness: 0.6,
+                    metalness: 0.1
+                 });
+            }
+            return materials[color];
+        }
+
+        // --- Game State & UI Elements ---
+        const colorPicker = document.getElementById('color-picker');
+        const sizeButtons = document.querySelectorAll('.size-button');
+        const buildToolButton = document.getElementById('build-tool');
+        const eraseToolButton = document.getElementById('erase-tool');
+        const clearButton = document.getElementById('clear-button');
+        const messageBox = document.getElementById('message-box');
+
+        let selectedColor = colorPicker.value;
+        let selectedBlockWidthUnits = 1; // Width in grid units
+        let selectedBlockDepthUnits = 1; // Depth in grid units
+        let currentTool = 'build'; // 'build' or 'erase'
+        let placedBlocks = []; // Array to store references to placed block meshes/groups
+
+        // --- Raycasting ---
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        // --- Ghost Block ---
+        const ghostMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            opacity: 0.5,
+            transparent: true,
+            roughness: 0.8
+        });
+        let ghostBlock = null; // Will hold the ghost mesh/group
+
+        // --- Utility Functions ---
+
+        /**
+         * Creates a Lego block mesh with studs.
+         * @param {number} widthUnits - Width in grid units.
+         * @param {number} depthUnits - Depth in grid units.
+         * @param {string} hexColor - Hex color string.
+         * @param {boolean} isGhost - If true, uses the ghost material.
+         * @returns {THREE.Group} - A group containing the base and studs.
+         */
+        function createLegoBlock(widthUnits, depthUnits, hexColor, isGhost = false) {
+            const blockGroup = new THREE.Group();
+
+            const blockWidth = widthUnits * gridSizeUnits;
+            const blockDepth = depthUnits * gridSizeUnits;
+            const baseGeometry = new THREE.BoxGeometry(blockWidth, blockHeight, blockDepth);
+            const material = isGhost ? ghostMaterial : getMaterial(hexColor);
+            const baseMesh = new THREE.Mesh(baseGeometry, material);
+            baseMesh.castShadow = !isGhost; // Ghosts don't cast shadows
+            baseMesh.receiveShadow = !isGhost;
+            baseMesh.position.y = blockHeight / 2; // Center the box vertically
+            blockGroup.add(baseMesh);
+
+            // Add studs
+            const studMaterial = material; // Studs use the same material
+            const startX = -blockWidth / 2 + gridSizeUnits / 2;
+            const startZ = -blockDepth / 2 + gridSizeUnits / 2;
+            const studY = blockHeight; // Studs sit on top
+
+            for (let i = 0; i < widthUnits; i++) {
+                for (let j = 0; j < depthUnits; j++) {
+                    const studMesh = new THREE.Mesh(studGeometry, studMaterial);
+                    studMesh.castShadow = !isGhost;
+                    studMesh.position.set(
+                        startX + i * gridSizeUnits,
+                        studY + studHeight / 2 - blockHeight / 2, // Adjust Y relative to group center
+                        startZ + j * gridSizeUnits
+                    );
+                    studMesh.rotation.x = Math.PI / 2; // Cylinders are created upright
+                    blockGroup.add(studMesh);
+                }
+            }
+            blockGroup.userData = { isLegoBlock: true, width: widthUnits, depth: depthUnits, color: hexColor }; // Add metadata
+            return blockGroup;
+        }
+
+        /** Updates the ghost block's appearance */
+        function updateGhostBlock() {
+             if (ghostBlock) {
+                scene.remove(ghostBlock);
+                // Simple disposal for now, could optimize if needed
+                ghostBlock.traverse(child => {
+                    if (child.geometry) child.geometry.dispose();
+                    // Don't dispose shared ghostMaterial
+                });
+            }
+            if (currentTool === 'build') {
+                 ghostBlock = createLegoBlock(selectedBlockWidthUnits, selectedBlockDepthUnits, selectedColor, true);
+                 scene.add(ghostBlock);
+                 ghostBlock.visible = false; // Initially hidden
+            } else {
+                ghostBlock = null; // No ghost for eraser
+            }
+        }
+
+        /** Shows a temporary message to the user */
+        function showMessage(text) {
+            messageBox.textContent = text;
+            messageBox.classList.add('show');
+            setTimeout(() => {
+                messageBox.classList.remove('show');
+            }, 1500); // Hide after 1.5 seconds
+        }
+
+        /** Updates the UI to show the active tool and block size. */
+        function updateActiveButtons() {
+            buildToolButton.classList.toggle('active', currentTool === 'build');
+            eraseToolButton.classList.toggle('active', currentTool === 'erase');
+
+            sizeButtons.forEach(button => {
+                const width = parseInt(button.dataset.width);
+                const depth = parseInt(button.dataset.depth);
+                button.classList.toggle('active', width === selectedBlockWidthUnits && depth === selectedBlockDepthUnits);
+            });
+             updateGhostBlock(); // Update ghost when tool or size changes
+        }
+
+        /** Calculates intersection point and snaps to grid */
+        function getPlacementPosition(intersect) {
+             // Calculate position based on intersection point, snapped to grid
+            const voxelPosition = new THREE.Vector3();
+            voxelPosition.copy(intersect.point).add(intersect.face.normal); // Move slightly in direction of normal
+            voxelPosition.divideScalar(gridSizeUnits).floor().multiplyScalar(gridSizeUnits); // Snap to grid floor
+
+             // Adjust position based on block dimensions to center it on the grid point
+            voxelPosition.x += (selectedBlockWidthUnits * gridSizeUnits) / 2;
+            voxelPosition.z += (selectedBlockDepthUnits * gridSizeUnits) / 2;
+
+            // Check if placing on top of another block
+            if (intersect.object !== groundPlane && intersect.object.parent?.userData?.isLegoBlock) {
+                 voxelPosition.y = intersect.object.parent.position.y + blockHeight; // Place on top
+            } else {
+                 voxelPosition.y = 0; // Place on ground (block center will be adjusted in createLegoBlock)
+            }
+            return voxelPosition;
+        }
+
+        // --- Event Listeners ---
+
+        // Mouse Move Handler (for raycasting and ghost block)
+        function onMouseMove(event) {
+            // Calculate mouse position in normalized device coordinates (-1 to +1)
+            mouse.x = (event.clientX / container.clientWidth) * 2 - 1;
+            // Adjust Y coordinate origin (from top-left to bottom-left for Three.js)
+             mouse.y = -((event.clientY - container.offsetTop) / container.clientHeight) * 2 + 1;
+
+            if (ghostBlock && currentTool === 'build') {
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects([...placedBlocks.map(b => b.children[0]), groundPlane]); // Intersect base meshes and ground
+
+                if (intersects.length > 0) {
+                    const intersect = intersects[0];
+                    const placementPos = getPlacementPosition(intersect);
+                     ghostBlock.position.copy(placementPos);
+                    ghostBlock.visible = true;
+                } else {
+                    ghostBlock.visible = false;
+                }
+            }
+        }
+        container.addEventListener('mousemove', onMouseMove);
+
+
+        // Click Handler (Place/Erase)
+        function onClick(event) {
+             // Use the already calculated mouse coordinates from onMouseMove
+            raycaster.setFromCamera(mouse, camera);
+            const objectsToIntersect = [...placedBlocks.map(b => b.children[0]), groundPlane]; // Intersect base meshes and ground
+            const intersects = raycaster.intersectObjects(objectsToIntersect);
+
+            if (intersects.length > 0) {
+                const intersect = intersects[0];
+
+                if (currentTool === 'build') {
+                    const placementPos = getPlacementPosition(intersect);
+
+                     // Basic boundary check (optional, adjust size as needed)
+                    const halfGrid = gridTotalSize / 2;
+                    if (Math.abs(placementPos.x) > halfGrid || Math.abs(placementPos.z) > halfGrid) {
+                        showMessage("Cannot place outside grid!");
+                        return;
+                    }
+
+                    // **TODO: Add overlap check here if desired**
+
+                    const newBlock = createLegoBlock(selectedBlockWidthUnits, selectedBlockDepthUnits, selectedColor);
+                    newBlock.position.copy(placementPos);
+                    scene.add(newBlock);
+                    placedBlocks.push(newBlock); // Add reference to the group
+
+                } else if (currentTool === 'erase') {
+                    // Check if we clicked a block (not the ground plane)
+                    if (intersect.object !== groundPlane && intersect.object.parent?.userData?.isLegoBlock) {
+                        const blockToRemove = intersect.object.parent; // Get the group
+                        scene.remove(blockToRemove);
+
+                        // Remove from placedBlocks array
+                        placedBlocks = placedBlocks.filter(b => b !== blockToRemove);
+
+                        // Dispose geometry and material to free memory
+                         blockToRemove.traverse(child => {
+                            if (child.geometry) child.geometry.dispose();
+                            // Materials are shared via getMaterial, don't dispose them individually here
+                            // unless they were unique (like the ghost material)
+                        });
+                    }
+                }
+            }
+        }
+         container.addEventListener('click', onClick);
+
+
+        // Color Picker Change Handler
+        colorPicker.addEventListener('input', (event) => {
+            selectedColor = event.target.value;
+             updateGhostBlock(); // Update ghost color
+        });
+
+        // Block Size Button Click Handler
+        sizeButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                selectedBlockWidthUnits = parseInt(button.dataset.width);
+                selectedBlockDepthUnits = parseInt(button.dataset.depth);
+                updateActiveButtons(); // Update styles and ghost block
+            });
+        });
+
+        // Tool Button Click Handlers
+        buildToolButton.addEventListener('click', () => {
+            currentTool = 'build';
+            updateActiveButtons();
+        });
+
+        eraseToolButton.addEventListener('click', () => {
+            currentTool = 'erase';
+            updateActiveButtons();
+        });
+
+        // Clear Button Click Handler
+        clearButton.addEventListener('click', () => {
+            if (confirm("Are you sure you want to clear the entire scene?")) {
+                // Remove all placed blocks from the scene and dispose
+                placedBlocks.forEach(block => {
+                    scene.remove(block);
+                     block.traverse(child => {
+                        if (child.geometry) child.geometry.dispose();
+                    });
+                });
+                placedBlocks = []; // Clear the array
+                // Materials in the 'materials' map are kept for reuse
+            }
+        });
+
+        // Window Resize Handler
+        function onWindowResize() {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+        window.addEventListener('resize', onWindowResize);
+
+        // --- Animation Loop ---
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update(); // Required if enableDamping is true
+            renderer.render(scene, camera);
+        }
+
+        // --- Initial Setup ---
+        updateActiveButtons(); // Set initial active button styles and create initial ghost
+        animate(); // Start the render loop
+
+    </script>
+</body>
+</html>
