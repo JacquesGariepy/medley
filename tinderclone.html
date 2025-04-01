@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tinder Clone</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .card {
+      transition: transform 0.3s ease, opacity 0.3s ease;
+      transform-style: preserve-3d;
+    }
+
+    .card.swipe-right {
+      transform: translateX(200px) rotate(20deg);
+      opacity: 0;
+    }
+
+    .card.swipe-left {
+      transform: translateX(-200px) rotate(-20deg);
+      opacity: 0;
+    }
+
+    .like-badge,
+    .nope-badge,
+    .super-like-badge {
+      position: absolute;
+      top: 50px;
+      font-size: 2rem;
+      font-weight: bold;
+      padding: 10px 20px;
+      border-radius: 5px;
+      opacity: 0;
+      transform: scale(0.5);
+      transition: opacity 0.3s, transform 0.3s;
+      z-index: 10;
+    }
+
+    .like-badge {
+      right: 20px;
+      color: #4ade80;
+      border: 3px solid #4ade80;
+    }
+
+    .nope-badge {
+      left: 20px;
+      color: #f87171;
+      border: 3px solid #f87171;
+    }
+
+    .super-like-badge {
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.5);
+      color: #3b82f6;
+      border: 3px solid #3b82f6;
+      background-color: rgba(255, 255, 255, 0.8);
+    }
+
+    .show-badge {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .profile-image {
+      height: 65vh;
+      object-fit: cover;
+    }
+
+    @media (max-width: 640px) {
+      .profile-image {
+        height: 60vh;
+      }
+    }
+
+    .action-btn {
+      width: 60px;
+      height: 60px;
+      transition: all 0.2s;
+    }
+
+    .action-btn:active {
+      transform: scale(0.9);
+    }
+
+    .progress-bar {
+      height: 5px;
+      background-color: #e5e7eb;
+      border-radius: 2.5px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background-color: #3b82f6;
+      border-radius: 2.5px;
+      transition: width 0.3s ease;
+    }
+
+    /* Animation for matches */
+    @keyframes float {
+      0% { transform: translateY(0px); }
+      50% { transform: translateY(-20px); }
+      100% { transform: translateY(0px); }
+    }
+
+    .match-animation {
+      animation: float 2s ease-in-out infinite;
+    }
+
+    /* Modal styles */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 100;
+    }
+
+    .modal-content {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: white;
+      border-radius: 15px;
+      max-width: 90%;
+      max-height: 90%;
+      overflow-y: auto;
+    }
+
+    /* Tab styles */
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Notification badge */
+    .notification-badge {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      background-color: #ef4444;
+      color: white;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+    }
+
+    /* Chat bubble styles */
+    .chat-bubble {
+      max-width: 70%;
+      padding: 10px 15px;
+      border-radius: 18px;
+      margin-bottom: 10px;
+    }
+
+    .chat-bubble-them {
+      background-color: #f1f1f1;
+      align-self: flex-start;
+      border-bottom-left-radius: 5px;
+    }
+
+    .chat-bubble-you {
+      background-color: #3b82f6;
+      color: white;
+      align-self: flex-end;
+      border-bottom-right-radius: 5px;
+    }
+
+    /* Profile image upload */
+    .profile-image-upload {
+      position: relative;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    .profile-image-upload input {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .profile-image-upload i {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      color: white;
+      padding: 5px;
+      border-radius: 50%;
+    }
+
+    /* Range slider styles */
+    .custom-range {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 8px;
+      border-radius: 4px;
+      background: #e5e7eb;
+      outline: none;
+    }
+
+    .custom-range::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #3b82f6;
+      cursor: pointer;
+    }
+
+    .custom-range::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #3b82f6;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body class="bg-gray-100 font-sans">
+  <!-- Main App Container -->
+  <div class="max-w-md mx-auto h-screen flex flex-col bg-white">
+    <!-- Navigation Tabs -->
+    <div class="tab-buttons bg-white shadow-sm py-3 px-6 flex justify-between items-center border-b">
+      <button class="tab-btn active text-pink-500" data-tab="discovery">
+        <i class="fas fa-fire text-xl"></i>
+      </button>
+      <button class="tab-btn text-gray-500" data-tab="matches">
+        <div class="relative">
+          <i class="fas fa-comments text-xl"></i>
+          <span class="notification-badge">3</span>
+        </div>
+      </button>
+      <button class="tab-btn text-gray-500" data-tab="profile">
+        <i class="fas fa-user-circle text-xl"></i>
+      </button>
+      <button class="tab-btn text-gray-500" data-tab="settings">
+        <i class="fas fa-cog text-xl"></i>
+      </button>
+    </div>
+
+    <!-- Tab Contents -->
+    <div class="flex-1 overflow-hidden relative">
+      <!-- Discovery Tab (Main Swiping) -->
+      <div id="discovery" class="tab-content active h-full">
+        <!-- Progress Bar -->
+        <div class="progress-bar w-full">
+          <div class="progress-fill" style="width: 30%"></div>
+        </div>
+
+        <!-- Card Stack -->
+        <div class="h-full w-full relative">
+          <div id="card-stack" class="h-full w-full relative">
+            <!-- Cards will be dynamically inserted here -->
+          </div>
+
+          <!-- Badges -->
+          <div class="like-badge">LIKE</div>
+          <div class="nope-badge">NOPE</div>
+          <div class="super-like-badge">SUPER LIKE</div>
+
+          <!-- No More Cards Message -->
+          <div id="no-more-cards" class="hidden absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">No more profiles nearby</h2>
+            <p class="text-gray-600 mb-6">Try adjusting your discovery settings or check back later for new people.</p>
+            <button class="bg-pink-500 text-white px-6 py-3 rounded-full font-bold shadow-md hover:bg-pink-600 transition">
+              Adjust Discovery
+            </button>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="bg-white py-6 px-8 flex justify-around items-center shadow-lg border-t">
+          <button id="rewind-btn" class="action-btn bg-white rounded-full shadow-md flex items-center justify-center text-purple-500 border border-purple-500">
+            <i class="fas fa-undo text-xl"></i>
+          </button>
+          <button id="nope-btn" class="action-btn bg-white rounded-full shadow-md flex items-center justify-center text-red-500 border border-red-500">
+            <i class="fas fa-times text-2xl"></i>
+          </button>
+          <button id="super-like-btn" class="action-btn bg-white rounded-full shadow-md flex items-center justify-center text-blue-500 border border-blue-500">
+            <i class="fas fa-star text-xl"></i>
+          </button>
+          <button id="like-btn" class="action-btn bg-white rounded-full shadow-md flex items-center justify-center text-green-500 border border-green-500">
+            <i class="fas fa-heart text-2xl"></i>
+          </button>
+          <button id="boost-btn" class="action-btn bg-white rounded-full shadow-md flex items-center justify-center text-yellow-500 border border-yellow-500">
+            <i class="fas fa-bolt text-xl"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Matches Tab -->
+      <div id="matches" class="tab-content h-full overflow-y-auto">
+        <div class="p-4">
+          <h2 class="text-xl font-bold text-gray-800 mb-4">Your Matches</h2>
+          
+          <!-- Matches List -->
+          <div class="space-y-4">
+            <!-- New Matches Section -->
+            <div>
+              <h3 class="font-semibold text-gray-700 mb-2">New Matches</h3>
+              <div class="grid grid-cols-3 gap-3">
+                <div class="relative match-item rounded-lg overflow-hidden" data-match-id="1">
+                  <img src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1740&q=80" class="w-full h-32 object-cover">
+                  <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-2">
+                    <span class="text-white font-medium">Sarah, 25</span>
+                  </div>
+                  <div class="notification-badge absolute top-2 right-2">1</div>
+                </div>
+                <div class="relative match-item rounded-lg overflow-hidden" data-match-id="2">
+                  <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=776&q=80" class="w-full h-32 object-cover">
+                  <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-2">
+                    <span class="text-white font-medium">James, 30</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Recent Messages Section -->
+            <div>
+              <h3 class="font-semibold text-gray-700 mb-2">Messages</h3>
+              <div class="space-y-2">
+                <div class="flex items-center p-3 rounded-lg bg-gray-50" data-match-id="3">
+                  <img src="https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80" class="w-12 h-12 rounded-full object-cover mr-3">
+                  <div class="flex-1">
+                    <div class="flex justify-between items-center">
+                      <h4 class="font-semibold">Emma, 27</h4>
+                      <span class="text-xs text-gray-500">2h ago</span>
+                    </div>
+                    <p class="text-sm text-gray-600 truncate">Hey! How was your weekend?</p>
+                  </div>
+                </div>
+                <div class="flex items-center p-3 rounded-lg" data-match-id="4">
+                  <img src="https://images.unsplash.com/photo-1552058544-f2b08422138a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=798&q=80" class="w-12 h-12 rounded-full object-cover mr-3">
+                  <div class="flex-1">
+                    <div class="flex justify-between items-center">
+                      <h4 class="font-semibold">Michael, 32</h4>
+                      <span class="text-xs text-gray-500">1d ago</span>
+                    </div>
+                    <p class="text-sm text-gray-600 truncate">Let's grab coffee this week!</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Profile Tab -->
+      <div id="profile" class="tab-content h-full overflow-y-auto">
+        <div class="p-4">
+          <div class="flex flex-col items-center mb-6">
+            <div class="profile-image-upload mb-3">
+              <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80" class="w-full h-full object-cover">
+              <input type="file" accept="image/*" id="profile-photo-upload">
+              <i class="fas fa-camera"></i>
+            </div>
+            <h2 class="text-2xl font-bold">Alex, 28</h2>
+            <p class="text-gray-600 mb-4">Adventure seeker and coffee enthusiast</p>
+            <div class="flex space-x-4">
+              <button class="bg-gray-100 text-gray-800 px-4 py-2 rounded-full text-sm font-medium">
+                <i class="fas fa-pencil-alt mr-1"></i> Edit Profile
+              </button>
+              <button class="bg-gray-100 text-gray-800 px-4 py-2 rounded-full text-sm font-medium">
+                <i class="fas fa-share-alt mr-1"></i> Share Profile
+              </button>
+            </div>
+          </div>
+
+          <div class="mb-6">
+            <h3 class="font-bold text-lg mb-3">About Me</h3>
+            <textarea class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" rows="4">Just moved to the city and looking to meet new people. I love hiking, trying new restaurants, and weekend getaways. Work in marketing but my real passion is photography.</textarea>
+          </div>
+
+          <div class="mb-6">
+            <h3 class="font-bold text-lg mb-3">My Interests</h3>
+            <div class="flex flex-wrap gap-2">
+              <span class="bg-pink-100 text-pink-800 px-3 py-1 rounded-full text-sm">Photography</span>
+              <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">Hiking</span>
+              <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm">Travel</span>
+              <span class="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">Coffee</span>
+              <span class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm">Foodie</span>
+              <button class="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm">
+                <i class="fas fa-plus"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="mb-6">
+            <h3 class="font-bold text-lg mb-3">Prompts</h3>
+            <div class="space-y-3">
+              <div class="border rounded-lg p-4">
+                <div class="flex justify-between items-start mb-2">
+                  <h4 class="font-medium text-gray-700">My perfect first date</h4>
+                  <button class="text-gray-400">
+                    <i class="fas fa-pencil-alt"></i>
+                  </button>
+                </div>
+                <p class="text-gray-800">Exploring a new coffee shop, then walking through the park or visiting a museum</p>
+              </div>
+              <button class="w-full border-2 border-dashed border-gray-300 rounded-lg py-4 flex items-center justify-center text-gray-500">
+                <i class="fas fa-plus mr-2"></i> Add a prompt
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings Tab -->
+      <div id="settings" class="tab-content h-full overflow-y-auto">
+        <div class="p-4">
+          <h2 class="text-xl font-bold mb-6">Settings</h2>
+          
+          <div class="space-y-6">
+            <!-- Account Settings -->
+            <div>
+              <h3 class="font-semibold text-lg mb-3">Account</h3>
+              <div class="space-y-2">
+                <button class="w-full text-left p-3 bg-gray-50 rounded-lg flex justify-between items-center">
+                  <span>Email: alex@example.com</span>
+                  <i class="fas fa-chevron-right text-gray-400"></i>
+                </button>
+                <button class="w-full text-left p-3 bg-gray-50 rounded-lg flex justify-between items-center">
+                  <span>Phone: (123) 456-7890</span>
+                  <i class="fas fa-chevron-right text-gray-400"></i>
+                </button>
+                <button class="w-full text-left p-3 bg-gray-50 rounded-lg flex justify-between items-center">
+                  <span>Change Password</span>
+                  <i class="fas fa-chevron-right text-gray-400"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Discovery Settings -->
+            <div>
+              <h3 class="font-semibold text-lg mb-3">Discovery</h3>
+              <div class="space-y-4">
+                <div>
+                  <div class="flex justify-between items-center mb-2">
+                    <span>Maximum Distance: <span id="distance-value">10</span> miles</span>
+                  </div>
+                  <input type="range" min="1" max="100" value="10" class="custom-range" id="distance-range">
+                </div>
+                <div>
+                  <div class="flex justify-between items-center mb-2">
+                    <span>Age Range: <span id="age-range-value">18-28</span></span>
+                  </div>
+                  <div class="flex items-center">
+                    <input type="range" min="18" max="60" value="18" class="custom-range flex-1 mr-2" id="age-min-range">
+                    <input type="range" min="18" max="60" value="28" class="custom-range flex-1 ml-2" id="age-max-range">
+                  </div>
+                </div>
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span>Show me people of the same orientation only</span>
+                  <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" value="" class="sr-only peer">
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Privacy & Security -->
+            <div>
+              <h3 class="font-semibold text-lg mb-3">Privacy & Security</h3>
+              <div class="space-y-2">
+                <button class="w-full text-left p-3 bg-gray-50 rounded-lg flex justify-between items-center">
+                  <span>Blocked Users</span>
+                  <i class="fas fa-chevron-right text-gray-400"></i>
+                </button>
+                <button class="w-full text-left p-3 bg-gray-50 rounded-lg flex justify-between items-center">
+                  <span>Location Settings</span>
+                  <i class="fas fa-chevron-right text-gray-400"></i>
+                </button>
+                <button class="w-full text-left p-3 bg-gray-50 rounded-lg flex justify-between items-center">
+                  <span>Data Privacy</span>
+                  <i class="fas fa-chevron-right text-gray-400"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- App Settings -->
+            <div>
+              <h3 class="font-semibold text-lg mb-3">App Settings</h3>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span>Notifications</span>
+                  <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" value="" class="sr-only peer" checked>
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span>Dark Mode</span>
+                  <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" value="" class="sr-only peer">
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+                <button class="w-full text-left p-3 bg-gray-50 rounded-lg flex justify-between items-center">
+                  <span>Language: English</span>
+                  <i class="fas fa-chevron-right text-gray-400"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Logout -->
+            <div class="pt-4">
+              <button class="w-full text-left p-3 bg-gray-50 rounded-lg text-red-500 font-medium">
+                Log Out
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Match Modal -->
+      <div id="match-modal" class="modal hidden">
+        <div class="modal-content w-64">
+          <div class="bg-white rounded-xl p-6 text-center">
+            <h3 class="text-lg font-bold mb-4">It's a Match!</h3>
+            <p class="text-gray-600 mb-4">You and Sarah have liked each other</p>
+            <div class="flex justify-center items-center -space-x-8 mb-6">
+              <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80" class="w-20 h-20 rounded-full border-4 border-white match-animation">
+              <img src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1740&q=80" class="w-20 h-20 rounded-full border-4 border-white match-animation" style="animation-delay: 0.2s;">
+            </div>
+            <div class="flex space-x-3">
+              <button id="keep-swiping" class="flex-1 bg-white border border-pink-500 text-pink-500 py-2 rounded-full font-bold">
+                Keep Swiping
+              </button>
+              <button id="send-message" class="flex-1 bg-pink-500 text-white py-2 rounded-full font-bold">
+                Send Message
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat Modal -->
+      <div id="chat-modal" class="modal hidden">
+        <div class="modal-content w-full h-full bg-white flex flex-col">
+          <!-- Chat Header -->
+          <div class="p-4 border-b flex items-center">
+            <button id="back-to-matches" class="mr-4">
+              <i class="fas fa-arrow-left"></i>
+            </button>
+            <img src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1740&q=80" class="w-10 h-10 rounded-full object-cover mr-3">
+            <div>
+              <h3 class="font-bold">Sarah</h3>
+              <p class="text-xs text-gray-500">Active now</p>
+            </div>
+            <button class="ml-auto text-gray-500">
+              <i class="fas fa-ellipsis-h"></i>
+            </button>
+          </div>
+
+          <!-- Chat Messages -->
+          <div id="chat-messages" class="flex-1 p-4 overflow-y-auto space-y-2">
+            <div class="flex flex-col">
+              <div class="chat-bubble chat-bubble-them">
+                Hey there! How's it going?
+              </div>
+              <div class="chat-bubble chat-bubble-you">
+                Great! Just got back from hiking. The views were amazing!
+              </div>
+              <div class="chat-bubble chat-bubble-them">
+                That sounds wonderful! Where did you go?
+              </div>
+              <div class="chat-bubble chat-bubble-you">
+                The national park about an hour away. We should go together sometime!
+              </div>
+            </div>
+          </div>
+
+          <!-- Message Input -->
+          <div class="p-4 border-t flex">
+            <button class="text-gray-500 mr-3">
+              <i class="fas fa-plus"></i>
+            </button>
+            <input type="text" placeholder="Type a message" class="flex-1 border rounded-full px-4 py-2 focus:outline-none">
+            <button class="ml-3 text-pink-500">
+              <i class="fas fa-paper-plane"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Tab switching functionality
+      const tabButtons = document.querySelectorAll('.tab-btn');
+      const tabContents = document.querySelectorAll('.tab-content');
+
+      tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+          const tabId = button.getAttribute('data-tab');
+          
+          // Update active tab button
+          tabButtons.forEach(btn => btn.classList.remove('active', 'text-pink-500'));
+          tabButtons.forEach(btn => btn.classList.add('text-gray-500'));
+          button.classList.add('active', 'text-pink-500');
+          button.classList.remove('text-gray-500');
+          
+          // Show corresponding tab content
+          tabContents.forEach(content => content.classList.remove('active'));
+          document.getElementById(tabId).classList.add('active');
+        });
+      });
+
+      // Profile data
+      const profiles = [
+        {
+          id: 1,
+          name: "Alex",
+          age: 28,
+          distance: "3 miles away",
+          bio: "Adventure seeker and coffee enthusiast. Let's explore the city together!",
+          image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80"
+        },
+        {
+          id: 2,
+          name: "Sarah",
+          age: 25,
+          distance: "5 miles away",
+          bio: "Artist and dog lover. Looking for someone to share museum dates with.",
+          image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1740&q=80"
+        },
+        {
+          id: 3,
+          name: "James",
+          age: 30,
+          distance: "1 mile away",
+          bio: "Tech entrepreneur who loves hiking and cooking Italian food.",
+          image: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=776&q=80"
+        },
+        {
+          id: 4,
+          name: "Emma",
+          age: 27,
+          distance: "7 miles away",
+          bio: "Yoga instructor and bookworm. Let's grab a matcha and chat!",
+          image: "https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80"
+        },
+        {
+          id: 5,
+          name: "Michael",
+          age: 32,
+          distance: "2 miles away",
+          bio: "Musician and foodie. Looking for someone to jam and eat tacos with.",
+          image: "https://images.unsplash.com/photo-1552058544-f2b08422138a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=798&q=80"
+        },
+        {
+          id: 6,
+          name: "Olivia",
+          age: 24,
+          distance: "4 miles away",
+          bio: "Medical student who enjoys painting and watching indie films.",
+          image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=776&q=80"
+        },
+        {
+          id: 7,
+          name: "Daniel",
+          age: 29,
+          distance: "6 miles away",
+          bio: "Sports coach who loves dogs and trying new craft beers.",
+          image: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80"
+        }
+      ];
+
+      const cardStack = document.getElementById('card-stack');
+      const likeBtn = document.getElementById('like-btn');
+      const nopeBtn = document.getElementById('nope-btn');
+      const rewindBtn = document.getElementById('rewind-btn');
+      const superLikeBtn = document.getElementById('super-like-btn');
+      const boostBtn = document.getElementById('boost-btn');
+      const likeBadge = document.querySelector('.like-badge');
+      const nopeBadge = document.querySelector('.nope-badge');
+      const superLikeBadge = document.querySelector('.super-like-badge');
+      const progressFill = document.querySelector('.progress-fill');
+      const noMoreCards = document.getElementById('no-more-cards');
+      const matchModal = document.getElementById('match-modal');
+      const keepSwipingBtn = document.getElementById('keep-swiping');
+      const sendMessageBtn = document.getElementById('send-message');
+      const chatModal = document.getElementById('chat-modal');
+      const backToMatchesBtn = document.getElementById('back-to-matches');
+      const matchItems = document.querySelectorAll('.match-item');
+      const distanceRange = document.getElementById('distance-range');
+      const distanceValue = document.getElementById('distance-value');
+      const ageMinRange = document.getElementById('age-min-range');
+      const ageMaxRange = document.getElementById('age-max-range');
+      const ageRangeValue = document.getElementById('age-range-value');
+
+      let currentIndex = 0;
+      let swipedProfiles = [];
+      let isDragging = false;
+      let startX, startY, moveX, moveY;
+      let currentCard;
+      let matches = [];
+      let likedMe = [2]; // Sarah has liked me
+
+      // Initialize the app
+      function init() {
+        renderCards();
+        updateProgressBar();
+        
+        // Set up event listeners
+        likeBtn.addEventListener('click', () => handleSwipe('right'));
+        nopeBtn.addEventListener('click', () => handleSwipe('left'));
+        rewindBtn.addEventListener('click', handleRewind);
+        superLikeBtn.addEventListener('click', () => handleSuperLike());
+        boostBtn.addEventListener('click', handleBoost);
+        keepSwipingBtn.addEventListener('click', () => matchModal.classList.add('hidden'));
+        sendMessageBtn.addEventListener('click', () => {
+          matchModal.classList.add('hidden');
+          chatModal.classList.remove('hidden');
+        });
+        backToMatchesBtn.addEventListener('click', () => {
+          chatModal.classList.add('hidden');
+        });
+        
+        // Match items click event
+        matchItems.forEach(item => {
+          item.addEventListener('click', () => {
+            const matchId = item.getAttribute('data-match-id');
+            showChat(matchId);
+          });
+        });
+
+        // Setup range sliders
+        distanceRange.addEventListener('input', () => {
+          distanceValue.textContent = distanceRange.value;
+        });
+
+        ageMinRange.addEventListener('input', updateAgeRange);
+        ageMaxRange.addEventListener('input', updateAgeRange);
+
+        // Initialize age range display
+        updateAgeRange();
+      }
+
+      function updateAgeRange() {
+        const min = ageMinRange.value;
+        const max = ageMaxRange.value;
+        
+        // Ensure min doesn't exceed max
+        if (parseInt(min) > parseInt(max)) {
+          ageMinRange.value = max;
+        }
+        
+        // Ensure max doesn't go below min
+        if (parseInt(max) < parseInt(min)) {
+          ageMaxRange.value = min;
+        }
+        
+        ageRangeValue.textContent = `${ageMinRange.value}-${ageMaxRange.value}`;
+      }
+
+      // Render profile cards
+      function renderCards() {
+        cardStack.innerHTML = '';
+        
+        if (currentIndex >= profiles.length) {
+          noMoreCards.classList.remove('hidden');
+          return;
+        }
+
+        noMoreCards.classList.add('hidden');
+        
+        // Only show the next 3 profiles
+        const profilesToShow = profiles.slice(currentIndex, currentIndex + 3);
+        
+        profilesToShow.forEach((profile, index) => {
+          const card = document.createElement('div');
+          card.className = `card absolute w-full h-full ${index === 0 ? 'z-10' : index === 1 ? 'z-5' : 'z-0'} ${index === 1 ? 'top-2' : index === 2 ? 'top-4' : ''} ${index === 1 ? 'scale-95' : index === 2 ? 'scale-90' : ''} bg-white rounded-xl overflow-hidden shadow-lg`;
+          card.dataset.id = profile.id;
+          
+          card.innerHTML = `
+            <div class="relative h-full">
+              <img src="${profile.image}" alt="${profile.name}" class="profile-image w-full">
+              <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-6 pt-16">
+                <div class="flex items-end">
+                  <h2 class="text-white text-3xl font-bold">${profile.name}, <span class="font-normal">${profile.age}</span></h2>
+                </div>
+                <p class="text-white mt-2">${profile.distance}</p>
+                <p class="text-white mt-3">${profile.bio}</p>
+              </div>
+            </div>
+          `;
+          
+          cardStack.appendChild(card);
+          
+          if (index === 0) {
+            currentCard = card;
+            setupCardEvents(card);
+          }
+        });
+      }
+      
+      // Set up drag/swipe events for a card
+      function setupCardEvents(card) {
+        card.addEventListener('mousedown', startDrag);
+        card.addEventListener('touchstart', startDrag, { passive: false });
+        card.addEventListener('mousemove', drag);
+        card.addEventListener('touchmove', drag, { passive: false });
+        card.addEventListener('mouseup', endDrag);
+        card.addEventListener('mouseleave', endDrag);
+        card.addEventListener('touchend', endDrag);
+      }
+      
+      // Start dragging
+      function startDrag(e) {
+        isDragging = true;
+        const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+        const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+        
+        startX = clientX;
+        startY = clientY;
+        
+        // Prevent scrolling on touch devices
+        if (e.type.includes('touch')) {
+          e.preventDefault();
+        }
+      }
+      
+      // During dragging
+      function drag(e) {
+        if (!isDragging) return;
+        
+        const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+        const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+        
+        moveX = clientX - startX;
+        moveY = clientY - startY;
+        
+        // Calculate rotation based on horizontal movement
+        const rotate = moveX * 0.1;
+        
+        // Apply transform
+        currentCard.style.transform = `translateX(${moveX}px) translateY(${moveY}px) rotate(${rotate}deg)`;
+        
+        // Show like/nope badge based on direction
+        if (moveX > 50) {
+          likeBadge.classList.add('show-badge');
+          nopeBadge.classList.remove('show-badge');
+          superLikeBadge.classList.remove('show-badge');
+        } else if (moveX < -50) {
+          nopeBadge.classList.add('show-badge');
+          likeBadge.classList.remove('show-badge');
+          superLikeBadge.classList.remove('show-badge');
+        } else {
+          likeBadge.classList.remove('show-badge');
+          nopeBadge.classList.remove('show-badge');
+          superLikeBadge.classList.remove('show-badge');
+        }
+        
+        // Prevent scrolling on touch devices
+        if (e.type.includes('touch')) {
+          e.preventDefault();
+        }
+      }
+      
+      // End dragging
+      function endDrag(e) {
+        if (!isDragging) return;
+        isDragging = false;
+        
+        // Determine if it's a swipe based on movement
+        if (moveX > 100) {
+          handleSwipe('right');
+        } else if (moveX < -100) {
+          handleSwipe('left');
+        } else {
+          // Return to original position if not swiped
+          currentCard.style.transform = '';
+          likeBadge.classList.remove('show-badge');
+          nopeBadge.classList.remove('show-badge');
+          superLikeBadge.classList.remove('show-badge');
+        }
+      }
+      
+      // Handle swipe action
+      function handleSwipe(direction) {
+        if (!currentCard) return;
+        
+        // Add swipe class based on direction
+        currentCard.classList.add(direction === 'right' ? 'swipe-right' : 'swipe-left');
+        
+        // Show badge based on direction
+        if (direction === 'right') {
+          likeBadge.classList.add('show-badge');
+          nopeBadge.classList.remove('show-badge');
+          superLikeBadge.classList.remove('show-badge');
+        } else {
+          nopeBadge.classList.add('show-badge');
+          likeBadge.classList.remove('show-badge');
+          superLikeBadge.classList.remove('show-badge');
+        }
+        
+        // Store swiped profile
+        const profileId = parseInt(currentCard.dataset.id);
+        const profile = profiles.find(p => p.id === profileId);
+        
+        swipedProfiles.push({ ...profile, direction });
+        
+        // Check if it's a match
+        if (direction === 'right' && likedMe.includes(profileId)) {
+          setTimeout(() => {
+            showMatchModal(profile);
+          }, 300);
+          
+          // Add to matches
+          matches.push(profile);
+        }
+        
+        // Move to next card after animation
+        setTimeout(() => {
+          currentIndex++;
+          updateProgressBar();
+          renderCards();
+        }, 300);
+      }
+      
+      // Handle super like
+      function handleSuperLike() {
+        if (!currentCard) return;
+        
+        // Show super like animation
+        superLikeBadge.classList.add('show-badge');
+        currentCard.style.border = '4px solid #3b82f6';
+        
+        // Swipe right after showing the super like indicator
+        setTimeout(() => {
+          handleSwipe('right');
+        }, 1000);
+      }
+      
+      // Handle rewind
+      function handleRewind() {
+        if (swipedProfiles.length === 0) return;
+        
+        // Get the last swiped profile
+        const lastSwiped = swipedProfiles.pop();
+        
+        // Find its index in the profiles array
+        const profileIndex = profiles.findIndex(p => p.id === lastSwiped.id);
+        
+        // If found, set currentIndex to that index and re-render
+        if (profileIndex !== -1) {
+          currentIndex = profileIndex;
+          updateProgressBar();
+          renderCards();
+        }
+      }
+      
+      // Handle boost (just a visual effect in this demo)
+      function handleBoost() {
+        // Show boost animation
+        const boostEffect = document.createElement('div');
+        boostEffect.className = 'absolute inset-0 bg-yellow-400 opacity-30 z-20';
+        cardStack.appendChild(boostEffect);
+        
+        // Remove after animation
+        setTimeout(() => {
+          boostEffect.remove();
+        }, 1000);
+        
+        // Simulate getting more matches during boost
+        setTimeout(() => {
+          // Show notification
+          const notification = document.createElement('div');
+          notification.className = 'absolute top-20 left-1/2 transform -translate-x-1/2 bg-white p-4 rounded-lg shadow-lg z-30 text-center animate-bounce';
+          notification.innerHTML = `
+            <p class="font-bold">Your profile is getting more views!</p>
+            <p class="text-sm text-gray-600">During boost you get 10x more matches</p>
+          `;
+          document.querySelector('.flex-1').appendChild(notification);
+          
+          // Remove notification after 3 seconds
+          setTimeout(() => {
+            notification.remove();
+          }, 3000);
+        }, 1000);
+      }
+      
+      // Update progress bar
+      function updateProgressBar() {
+        const progress = (currentIndex / profiles.length) * 100;
+        progressFill.style.width = `${progress}%`;
+      }
+      
+      // Show match modal
+      function showMatchModal(profile) {
+        matchModal.classList.remove('hidden');
+        
+        // Update modal with matched profile info
+        document.querySelector('#match-modal .match-animation:last-child').src = profile.image;
+      }
+      
+      // Show chat
+      function showChat(matchId) {
+        const profile = profiles.find(p => p.id === parseInt(matchId));
+        
+        if (profile) {
+          // Update chat header
+          const chatHeader = document.querySelector('#chat-modal .rounded-full');
+          chatHeader.src = profile.image;
+          document.querySelector('#chat-modal h3').textContent = profile.name;
+          
+          // Clear any existing messages
+          const chatMessages = document.getElementById('chat-messages');
+          chatMessages.innerHTML = '';
+          
+          // Add sample messages (in a real app, you'd fetch these from a database)
+          const messages = [
+            { sender: 'them', text: 'Hey there! How are you?' },
+            { sender: 'you', text: "I'm good! Just got back from work. How about you?" },
+            { sender: 'them', text: "Same here! Busy day but glad it's over." },
+            { sender: 'you', text: "Want to grab coffee this weekend?" },
+            { sender: 'them', text: "That sounds great! How about Saturday?" }
+          ];
+          
+          // Render messages
+          messages.forEach(msg => {
+            const bubble = document.createElement('div');
+            bubble.className = `chat-bubble ${msg.sender === 'them' ? 'chat-bubble-them' : 'chat-bubble-you'}`;
+            bubble.textContent = msg.text;
+            chatMessages.appendChild(bubble);
+          });
+          
+          // Scroll to bottom of chat
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+          
+          // Show chat modal
+          chatModal.classList.remove('hidden');
+        }
+      }
+      
+      // Initialize the app
+      init();
+    });
+  </script>
+<p style="border-radius: 8px; text-align: center; font-size: 12px; color: #fff; margin-top: 16px;position: fixed; left: 8px; bottom: 8px; z-index: 10; background: rgba(0, 0, 0, 0.8); padding: 4px 8px;">Made with <img src="https://enzostvs-deepsite.hf.space/logo.svg" alt="DeepSite Logo" style="width: 16px; height: 16px; vertical-align: middle;display:inline-block;margin-right:3px;filter:brightness(0) invert(1);"><a href="https://enzostvs-deepsite.hf.space" style="color: #fff;text-decoration: underline;" target="_blank" >DeepSite</a> - <a href="https://enzostvs-deepsite.hf.space?remix=jackboy70/tinderclone" style="color: #fff;text-decoration: underline;" target="_blank" >🧬 Remix</a></p></body>
+
+</html>
