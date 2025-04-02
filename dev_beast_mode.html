@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beast Mode Geek</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://kit.fontawesome.com/yourcode.js" crossorigin="anonymous"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Fira Code', monospace;
+            background-color: #0a0a0a;
+            color: #00ff41;
+            overflow: hidden;
+        }
+        
+        .code-editor {
+            background-color: #121212;
+            border: 1px solid #00ff41;
+            border-radius: 6px;
+        }
+        
+        .terminal {
+            background-color: #121212;
+            border: 1px solid #ff2a6d;
+            border-radius: 6px;
+        }
+        
+        .file-explorer {
+            background-color: #121212;
+            border: 1px solid #05d9e8;
+            border-radius: 6px;
+        }
+        
+        .beast-status {
+            background-color: #121212;
+            border: 1px solid #d300c5;
+            border-radius: 6px;
+        }
+        
+        .glow-text {
+            text-shadow: 0 0 5px #00ff41;
+        }
+        
+        .glow-red {
+            text-shadow: 0 0 5px #ff2a6d;
+        }
+        
+        .glow-blue {
+            text-shadow: 0 0 5px #05d9e8;
+        }
+        
+        .glow-purple {
+            text-shadow: 0 0 5px #d300c5;
+        }
+        
+        .typewriter {
+            border-right: 3px solid #00ff41;
+            animation: blink-caret 0.75s step-end infinite;
+        }
+        
+        @keyframes blink-caret {
+            from, to { border-color: transparent; }
+            50% { border-color: #00ff41; }
+        }
+        
+        .typing-effect {
+            overflow: hidden;
+            white-space: nowrap;
+            animation: typing 3.5s steps(40, end);
+        }
+        
+        @keyframes typing {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+        
+        .matrix-rain {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.15;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col bg-gray-900 text-green-400">
+    <!-- Matrix rain background effect -->
+    <canvas id="matrix" class="matrix-rain"></canvas>
+    
+    <!-- Header -->
+    <header class="bg-black bg-opacity-80 p-4 flex justify-between items-center border-b border-green-500">
+        <div class="flex items-center space-x-4">
+            <h1 class="text-3xl font-bold glow-text">BEAST MODE <span class="text-purple-500 glow-purple">GEEK</span></h1>
+            <span class="text-yellow-400 text-sm typewriter">CODE LIKE A CYBER WIZARD</span>
+        </div>
+        <div class="flex space-x-4">
+            <button class="px-4 py-2 bg-green-900 bg-opacity-70 hover:bg-opacity-100 rounded-md glow-text transition-all duration-300">
+                <span class="font-mono">⚡ POWER UP</span>
+            </button>
+            <button id="darkModeToggle" class="px-4 py-2 bg-purple-900 bg-opacity-70 hover:bg-opacity-100 rounded-md glow-purple transition-all duration-300">
+                <span class="font-mono">🌙 NIGHT VISION</span>
+            </button>
+        </div>
+    </header>
+    
+    <!-- Main Content -->
+    <main class="flex-1 grid grid-cols-12 gap-4 p-4 overflow-hidden">
+        <!-- File Explorer Panel -->
+        <div class="col-span-2 file-explorer flex flex-col">
+            <div class="p-3 border-b border-blue-500 flex justify-between items-center">
+                <h3 class="text-xl glow-blue">FILE EXPLORER</h3>
+                <button class="text-blue-400 glow-blue">+</button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-2">
+                <div class="mb-2">
+                    <div class="flex items-center space-x-1 text-yellow-400 cursor-pointer">
+                        <span>📁</span>
+                        <span>project-root</span>
+                    </div>
+                    <div class="ml-4 mt-1 space-y-1">
+                        <div class="flex items-center space-x-1 hover:text-white cursor-pointer">
+                            <span>📄</span>
+                            <span>index.html</span>
+                        </div>
+                        <div class="flex items-center space-x-1 hover:text-white cursor-pointer">
+                            <span>📄</span>
+                            <span>styles.css</span>
+                        </div>
+                        <div class="flex items-center space-x-1 hover:text-white cursor-pointer">
+                            <span>📄</span>
+                            <span>script.js</span>
+                        </div>
+                        <div class="flex items-center space-x-1 text-blue-400 cursor-pointer">
+                            <span>📁</span>
+                            <span>assets</span>
+                        </div>
+                        <div class="flex items-center space-x-1 text-blue-400 cursor-pointer">
+                            <span>📁</span>
+                            <span>node_modules</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="p-3 border-t border-blue-500">
+                <div class="text-sm flex justify-between text-gray-400">
+                    <span>LINES: 1,024</span>
+                    <span>UTF-8</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Code Editor Panel -->
+        <div class="col-span-6 code-editor flex flex-col">
+            <div class="p-2 border-b border-green-500 flex space-x-8">
+                <div class="flex space-x-2">
+                    <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                    <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                    <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                </div>
+                <div class="flex space-x-4 text-sm">
+                    <span class="text-yellow-400">index.html</span>
+                    <span class="text-gray-500">script.js</span>
+                    <span class="text-gray-500">styles.css</span>
+                    <span class="text-gray-500">+</span>
+                </div>
+            </div>
+            <div class="flex-1 p-2 overflow-hidden">
+                <div class="line-numbers h-full overflow-y-auto">
+                    <pre class="text-sm font-mono">
+<span class="text-gray-600">1   </span><span class="text-blue-400">&lt;!DOCTYPE</span> <span class="text-green-400">html</span><span class="text-blue-400">&gt;</span>
+<span class="text-gray-600">2   </span><span class="text-blue-400">&lt;html</span> <span class="text-green-400">lang=</span><span class="text-yellow-400">"en"</span><span class="text-blue-400">&gt;</span>
+<span class="text-gray-600">3   </span><span class="text-blue-400">&lt;head&gt;</span>
+<span class="text-gray-600">4   </span>    <span class="text-blue-400">&lt;meta</span> <span class="text-green-400">charset=</span><span class="text-yellow-400">"UTF-8"</span><span class="text-blue-400">&gt;</span>
+<span class="text-gray-600">5   </span>    <span class="text-blue-400">&lt;meta</span> <span class="text-green-400">name=</span><span class="text-yellow-400">"viewport"</span> <span class="text-green-400">content=</span><span class="text-yellow-400">"width=device-width, initial-scale=1.0"</span><span class="text-blue-400">&gt;</span>
+<span class="text-gray-600">6   </span>    <span class="text-blue-400">&lt;title&gt;</span>Beast Mode Geek<span class="text-blue-400">&lt;/title&gt;</span>
+<span class="text-gray-600">7   </span>    <span class="text-blue-400">&lt;script</span> <span class="text-green-400">src=</span><span class="text-yellow-400">"https://cdn.tailwindcss.com"</span><span class="text-blue-400">&gt;&lt;/script&gt;</span>
+<span class="text-gray-600">8   </span>    <span class="text-blue-400">&lt;script</span> <span class="text-green-400">src=</span><span class="text-yellow-400">"https://kit.fontawesome.com/yourcode.js"</span> <span class="text-green-400">crossorigin=</span><span class="text-yellow-400">"anonymous"</span><span class="text-blue-400">&gt;&lt;/script&gt;</span>
+<span class="text-gray-600">9   </span><span class="text-blue-400">&lt;/head&gt;</span>
+<span class="text-gray-600">10  </span><span class="text-blue-400">&lt;body</span> <span class="text-green-400">class=</span><span class="text-yellow-400">"h-screen flex flex-col bg-gray-900 text-green-400"</span><span class="text-blue-400">&gt;</span>
+<span class="text-gray-600">11  </span>    <span class="text-comment">&lt;!-- Matrix rain background effect --&gt;</span>
+<span class="text-gray-600">12  </span>    <span class="text-blue-400">&lt;canvas</span> <span class="text-green-400">id=</span><span class="text-yellow-400">"matrix"</span> <span class="text-green-400">class=</span><span class="text-yellow-400">"matrix-rain"</span><span class="text-blue-400">&gt;&lt;/canvas&gt;</span>
+<span class="text-gray-600">13  </span>    
+<span class="text-gray-600">14  </span>    <span class="text-comment">&lt;!-- Header --&gt;</span>
+<span class="text-gray-600">15  </span>    <span class="text-blue-400">&lt;header</span> <span class="text-green-400">class=</span><span class="text-yellow-400">"bg-black bg-opacity-80 p-4 flex justify-between items-center border-b border-green-500"</span><span class="text-blue-400">&gt;</span>
+<span class="text-gray-600">16  </span>        <span class="text-blue-400">&lt;div</span> <span class="text-green-400">class=</span><span class="text-yellow-400">"flex items-center space-x-4"</span><span class="text-blue-400">&gt;</span>
+<span class="text-gray-600">17  </span>            <span class="text-blue-400">&lt;h1</span> <span class="text-green-400">class=</span><span class="text-yellow-400">"text-3xl font-bold glow-text"</span><span class="text-blue-400">&gt;</span>BEAST MODE <span class="text-blue-400">&lt;span</span> <span class="text-green-400">class=</span><span class="text-yellow-400">"text-purple-500 glow-purple"</span><span class="text-blue-400">&gt;</span>GEEK<span class="text-blue-400">&lt;/span&gt;&lt;/h1&gt;</span>
+<span class="text-gray-600">18  </span>            <span class="text-blue-400">&lt;span</span> <span class="text-green-400">class=</span><span class="text-yellow-400">"text-yellow-400 text-sm typewriter"</span><span class="text-blue-400">&gt;</span>CODE LIKE A CYBER WIZARD<span class="text-blue-400">&lt;/span&gt;</span>
+<span class="text-gray-600">19  </span>        <span class="text-blue-400">&lt;/div&gt;</span>
+<span class="text-pink-600">20  </span>        
+<span class="text-pink-600">21  </span>        <div class="caret animate-pulse">|</div>
+                    </pre>
+                </div>
+            </div>
+            <div class="p-2 border-t border-green-500 flex justify-between items-center text-sm">
+                <div class="flex space-x-4 text-gray-400">
+                    <span class="text-green-400">main</span>
+                    <span>UTF-8</span>
+                    <span>Ln 21, Col 14</span>
+                </div>
+                <div class="flex space-x-2">
+                    <span class="px-2 py-1 bg-green-900 bg-opacity-30 rounded">HTML</span>
+                    <span class="px-2 py-1 bg-green-900 bg-opacity-30 rounded">Prettier</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Sidebar -->
+        <div class="col-span-4 flex flex-col space-y-4">
+            <!-- Terminal Panel -->
+            <div class="flex-1 terminal">
+                <div class="p-2 border-b border-red-500 flex justify-between items-center">
+                    <h3 class="text-xl glow-red">TERMINAL</h3>
+                    <div class="text-sm flex space-x-2">
+                        <button class="px-2 py-0.5 bg-red-900 bg-opacity-30 rounded hover:bg-opacity-50 transition">Clear</button>
+                        <button class="px-2 py-0.5 bg-red-900 bg-opacity-30 rounded hover:bg-opacity-50 transition">Minimize</button>
+                    </div>
+                </div>
+                <div class="p-2 h-64 overflow-y-auto font-mono text-sm">
+                    <div class="text-green-400">> git status</div>
+                    <div class="text-gray-400 ml-4">On branch main</div>
+                    <div class="text-gray-400 ml-4">Your branch is up to date with 'origin/main'.</div>
+                    <div class="text-gray-400 ml-4">nothing to commit, working tree clean</div>
+                    <div class="text-green-400 mt-2">> npm start</div>
+                    <div class="text-gray-400 ml-4">
+                        <div>Compiling...</div>
+                        <div>Compiled successfully!</div>
+                    </div>
+                    <div class="text-gray-400 ml-4">
+                        <div>You can now view beast-mode-geek in the browser.</div>
+                        <div>Local: http://localhost:3000</div>
+                    </div>
+                    <div class="text-green-400 mt-2">> _ <span class="caret animate-pulse">█</span></div>
+                </div>
+            </div>
+            
+            <!-- Beast Status Panel -->
+            <div class="flex-1 beast-status">
+                <div class="p-2 border-b border-purple-500">
+                    <h3 class="text-xl glow-purple">BEAST MODE STATUS</h3>
+                </div>
+                <div class="p-4 grid grid-cols-2 gap-4">
+                    <div class="col-span-2">
+                        <div class="flex justify-between mb-1">
+                            <span>SYSTEM LOAD</span>
+                            <span>87%</span>
+                        </div>
+                        <div class="w-full bg-gray-800 rounded-full h-2.5">
+                            <div class="bg-purple-500 h-2.5 rounded-full" style="width: 87%"></div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <div class="text-xs text-gray-400">CPU</div>
+                        <div class="text-lg glow-purple">3.9 GHz</div>
+                        <div class="w-full bg-gray-800 rounded-full h-1 mt-1">
+                            <div class="bg-purple-500 h-1 rounded-full" style="width: 72%"></div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <div class="text-xs text-gray-400">MEM</div>
+                        <div class="text-lg glow-purple">32 GB</div>
+                        <div class="w-full bg-gray-800 rounded-full h-1 mt-1">
+                            <div class="bg-purple-500 h-1 rounded-full" style="width: 64%"></div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <div class="text-xs text-gray-400">ACTIVE TASKS</div>
+                        <div class="text-lg glow-purple">12</div>
+                    </div>
+                    
+                    <div>
+                        <div class="text-xs text-gray-400">OPEN FILES</div>
+                        <div class="text-lg glow-purple">8</div>
+                    </div>
+                    
+                    <div class="col-span-2 mt-2">
+                        <div class="text-sm text-gray-400 mb-1">BEAST MODE ACTIVATIONS</div>
+                        <div class="flex space-x-2">
+                            <span class="px-2 py-1 bg-purple-900 bg-opacity-40 rounded-full text-xs">⚡ Optimized</span>
+                            <span class="px-2 py-1 bg-purple-900 bg-opacity-40 rounded-full text-xs">🔥 Hot Reload</span>
+                            <span class="px-2 py-1 bg-purple-900 bg-opacity-40 rounded-full text-xs">👁️ AI Assist</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Footer -->
+    <footer class="bg-black bg-opacity-80 p-2 border-t border-green-500 flex justify-between text-xs text-gray-400">
+        <div class="flex space-x-4">
+            <span>READY</span>
+            <span>Ln 21, Col 14</span>
+            <span>UTF-8</span>
+        </div>
+        <div class="flex space-x-4">
+            <span>Live Server: Running</span>
+            <span>Prettier: Active</span>
+            <span class="text-green-400">Beast Mode: ENGAGED</span>
+        </div>
+    </footer>
+
+    <script>
+        // Matrix Rain Effect
+        const canvas = document.getElementById('matrix');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        const characters = "01";
+        const fontSize = 15;
+        const columns = canvas.width / fontSize;
+        
+        const drops = [];
+        for(let i = 0; i < columns; i++) {
+            drops[i] = Math.random() * -100;
+        }
+        
+        function draw() {
+            ctx.fillStyle = 'rgba(0, 10, 0, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = '#00ff41';
+            ctx.font = `${fontSize}px monospace`;
+            
+            for(let i = 0; i < drops.length; i++) {
+                const text = characters.charAt(Math.floor(Math.random() * characters.length));
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                
+                if(drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                
+                drops[i]++;
+            }
+        }
+        
+        setInterval(draw, 33);
+        
+        // Dark mode toggle
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        darkModeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('bg-gray-900');
+            document.body.classList.toggle('bg-gray-100');
+            document.body.classList.toggle('text-green-400');
+            document.body.classList.toggle('text-gray-800');
+        });
+        
+        // Simulate typing in terminal
+        const terminalInput = document.querySelector('.terminal .text-green-400:last-child');
+        const commands = [
+            "git push origin main",
+            "npm run build",
+            "start hack.exe",
+            "initiate beast-mode",
+            "engage cyber protocols"
+        ];
+        
+        let currentCommand = 0;
+        let typingInterval;
+        
+        function simulateTyping() {
+            if(currentCommand >= commands.length) currentCommand = 0;
+            
+            const command = commands[currentCommand++];
+            
+            terminalInput.innerHTML = '> ';
+            let i = 0;
+            
+            clearInterval(typingInterval);
+            
+            typingInterval = setInterval(() => {
+                if(i < command.length) {
+                    terminalInput.innerHTML = '> ' + command.substring(0, i+1);
+                    i++;
+                } else {
+                    clearInterval(typingInterval);
+                    setTimeout(() => {
+                        simulateTyping();
+                    }, 2000);
+                }
+            }, 50 + Math.random() * 50);
+        }
+        
+        setTimeout(simulateTyping, 1500);
+    </script>
+</body>
+</html>
